@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#F58220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<title>Contagem São Paulo</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #FAF8F4; color: #333; overflow-x: hidden; }
+body { padding-bottom: 80px; padding-top: env(safe-area-inset-top); }
+
+/* Splash de carregamento */
+.splash {
+    position: fixed; inset: 0; background: #F58220; color: white;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 9999; font-size: 1.2em; gap: 16px;
+}
+.splash-icon { font-size: 3em; }
+.splash-spinner {
+    width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
+    border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.splash-progress { font-size: 0.85em; opacity: 0.8; margin-top: 8px; }
+
+/* Header */
+.header {
+    background: #F58220; color: white; padding: 12px 16px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    padding-top: calc(12px + env(safe-area-inset-top));
+}
+.header h1 { font-size: 1.05em; font-weight: 600; }
+.header .subtitle { font-size: 0.75em; opacity: 0.9; margin-top: 2px; }
+
+/* Stats */
+.stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+    background: white; padding: 10px 6px; border-bottom: 2px solid #F58220;
+    position: sticky; z-index: 99;
+}
+.stat { text-align: center; padding: 4px 2px; }
+.stat-val { font-size: 1.15em; font-weight: 700; line-height: 1; }
+.stat-lbl { font-size: 0.6em; color: #666; margin-top: 2px; text-transform: uppercase; }
+.stat-val.total { color: #F58220; }
+.stat-val.contados { color: #27AE60; }
+.stat-val.faltam { color: #C0392B; }
+.stat-val.sobram { color: #F39C12; }
+
+.progress-bar { background: #E0E0E0; height: 4px; }
+.progress-fill { background: #27AE60; height: 100%; transition: width 0.3s; }
+
+/* Tabs */
+.tabs {
+    display: flex; background: white; border-bottom: 1px solid #ddd;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.tab {
+    flex: 1; min-width: 90px; padding: 12px 6px; text-align: center; font-size: 0.8em;
+    font-weight: 500; color: #666; cursor: pointer; border-bottom: 3px solid transparent;
+    white-space: nowrap;
+}
+.tab.active { color: #F58220; border-bottom-color: #F58220; font-weight: 700; }
+.tab-count { font-size: 0.75em; opacity: 0.8; margin-left: 2px; }
+
+/* Search */
+.search-container { padding: 10px; background: #F5F5F5; display: flex; gap: 8px; }
+.search-input {
+    flex: 1; padding: 12px 14px; border: 2px solid #ddd; border-radius: 8px;
+    font-size: 16px; background: white; -webkit-appearance: none;
+}
+.search-input:focus { outline: none; border-color: #F58220; }
+.btn-camera {
+    width: 50px; height: 50px; border: none; border-radius: 8px;
+    background: #F58220; color: white; font-size: 24px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.btn-camera:active { transform: scale(0.95); }
+.search-hint { padding: 0 14px 8px; font-size: 0.7em; color: #888; background: #F5F5F5; }
+
+/* Lista */
+.lista { padding: 8px; min-height: 200px; }
+.produto-card {
+    background: white; border-radius: 8px; margin-bottom: 8px;
+    padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer;
+    border-left: 4px solid #ddd;
+}
+.produto-card.contado { border-left-color: #27AE60; }
+.produto-card.falta { border-left-color: #C0392B; background: #FFF5F5; }
+.produto-card.sobra { border-left-color: #F39C12; background: #FFFAEB; }
+.produto-card:active { background: #F0F0F0; }
+
+.produto-nome { font-weight: 600; font-size: 0.95em; line-height: 1.3; margin-bottom: 4px; color: #1a1a1a; }
+.produto-variacao { font-size: 0.8em; color: #666; margin-bottom: 6px; }
+.produto-sku { font-size: 0.7em; color: #888; font-family: monospace; word-break: break-all; }
+.produto-stats { display: flex; gap: 12px; margin-top: 8px; font-size: 0.8em; }
+.produto-stat { display: flex; flex-direction: column; }
+.produto-stat-lbl { color: #888; font-size: 0.7em; }
+.produto-stat-val { font-weight: 600; }
+.produto-stat-val.div-pos { color: #F39C12; }
+.produto-stat-val.div-neg { color: #C0392B; }
+.produto-stat-val.div-zero { color: #27AE60; }
+
+/* Modal */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 1000; display: none; align-items: flex-end;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+    background: white; width: 100%; border-radius: 16px 16px 0 0;
+    padding: 20px; max-height: 90vh; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+.modal-handle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 16px; }
+.modal-titulo { font-size: 1em; font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
+.modal-variacao { font-size: 0.85em; color: #666; margin-bottom: 16px; }
+.modal-info { background: #F5F5F5; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85em; }
+.modal-info-row { display: flex; justify-content: space-between; padding: 4px 0; }
+.modal-info-lbl { color: #666; }
+.modal-info-val { font-weight: 600; word-break: break-all; text-align: right; }
+
+.qty-section { background: #F5F5F5; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+.qty-label { font-size: 0.9em; font-weight: 600; margin-bottom: 8px; text-align: center; color: #F58220; }
+.qty-controls { display: flex; align-items: center; gap: 8px; justify-content: center; }
+.qty-btn {
+    width: 50px; height: 50px; border: 2px solid #F58220; background: white;
+    border-radius: 50%; font-size: 24px; font-weight: 700; color: #F58220;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    -webkit-appearance: none;
+}
+.qty-btn:active { background: #F58220; color: white; }
+.qty-input {
+    flex: 1; max-width: 120px; padding: 12px; font-size: 28px; font-weight: 700;
+    text-align: center; border: 2px solid #F58220; border-radius: 8px;
+    color: #F58220; background: white; -webkit-appearance: none;
+}
+.qty-input:focus { outline: none; border-color: #F58220; }
+
+.divergencia-display { text-align: center; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: 700; font-size: 1em; }
+.div-display-zero { background: #EFFAF1; color: #27AE60; }
+.div-display-pos { background: #FFFAEB; color: #F39C12; }
+.div-display-neg { background: #FFEDED; color: #C0392B; }
+
+.obs-input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; resize: vertical; min-height: 60px; font-family: inherit; -webkit-appearance: none; }
+.obs-input:focus { outline: none; border-color: #F58220; }
+
+.btn-group { display: flex; gap: 8px; margin-top: 16px; }
+.btn { flex: 1; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; -webkit-appearance: none; }
+.btn-cancel { background: #E0E0E0; color: #333; }
+.btn-save { background: #F58220; color: white; }
+.btn-save:active { opacity: 0.8; }
+
+/* Bottom bar */
+.bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; background: white;
+    border-top: 1px solid #ddd; padding: 8px; display: flex; gap: 6px; z-index: 99;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+.bottom-btn { flex: 1; padding: 10px 4px; border: 1px solid #ddd; border-radius: 8px; background: white; color: #F58220; font-size: 0.75em; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; -webkit-appearance: none; }
+.bottom-btn:active { background: #F0F0F0; }
+.bottom-btn.primary { background: #F58220; color: white; border-color: #F58220; }
+.bottom-btn.camera { background: #27AE60; color: white; border-color: #27AE60; }
+.bottom-btn-icon { font-size: 1.2em; }
+
+/* Câmera */
+.camera-overlay {
+    position: fixed; inset: 0; background: black;
+    z-index: 2000; display: none; flex-direction: column;
+}
+.camera-overlay.active { display: flex; }
+.camera-header {
+    background: rgba(0,0,0,0.8); color: white; padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: calc(14px + env(safe-area-inset-top));
+}
+.camera-title { font-size: 0.95em; font-weight: 600; }
+.camera-close { background: rgba(255,255,255,0.2); color: white; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-appearance: none; }
+
+#video-elem { flex: 1; width: 100%; object-fit: cover; background: black; }
+
+.scan-overlay {
+    position: absolute; top: 60px; left: 0; right: 0; bottom: 100px;
+    display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.scan-frame {
+    width: 80%; max-width: 320px; height: 160px; border: 3px solid #F58220;
+    border-radius: 12px; position: relative; box-shadow: 0 0 0 9999px rgba(0,0,0,0.4);
+}
+.scan-line {
+    position: absolute; top: 0; left: 8px; right: 8px; height: 2px; background: #F58220;
+    box-shadow: 0 0 8px #F58220; animation: scan 2s linear infinite;
+}
+@keyframes scan { 0%, 100% { top: 4px; } 50% { top: calc(100% - 6px); } }
+
+.scan-info {
+    position: absolute; bottom: 110px; left: 0; right: 0;
+    text-align: center; color: white; padding: 16px; font-size: 0.85em;
+}
+.scan-info.error { color: #FF6B6B; }
+.scan-info.success { color: #27AE60; }
+.scan-result-box {
+    background: rgba(39, 174, 96, 0.95); color: white; padding: 14px 20px;
+    border-radius: 8px; display: inline-block; margin: 0 16px;
+    font-weight: 600; max-width: 90%;
+}
+
+.camera-controls {
+    background: rgba(0,0,0,0.85); padding: 12px;
+    display: flex; gap: 8px; justify-content: center;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+.cam-btn {
+    flex: 1; padding: 12px 4px; border: none; border-radius: 8px;
+    background: #F58220; color: white; font-size: 0.85em; font-weight: 600;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    -webkit-appearance: none;
+}
+.cam-btn:active { opacity: 0.7; }
+.cam-btn.active { background: #F58220; }
+.cam-btn.capture { background: #F58220; }
+.cam-btn-icon { font-size: 1.2em; }
+.cam-btn.disabled { opacity: 0.4; pointer-events: none; }
+
+/* OCR resultado */
+.ocr-result {
+    background: white; padding: 16px; border-radius: 12px;
+    position: absolute; bottom: 90px; left: 12px; right: 12px;
+    max-height: 50vh; overflow-y: auto; display: none;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+.ocr-result.active { display: block; }
+.ocr-result-title { font-weight: 600; margin-bottom: 8px; color: #F58220; font-size: 0.9em; }
+.ocr-text {
+    background: #F5F5F5; padding: 8px 12px; border-radius: 8px; font-size: 0.8em;
+    margin-bottom: 12px; max-height: 80px; overflow-y: auto; color: #666;
+}
+.ocr-match { background: #F5F5F5; padding: 10px; border-radius: 6px; margin-bottom: 6px; cursor: pointer; border-left: 3px solid #F58220; }
+.ocr-match:active { background: #FFFAEB; }
+.ocr-match-name { font-weight: 600; font-size: 0.85em; line-height: 1.3; }
+.ocr-match-info { font-size: 0.7em; color: #666; margin-top: 2px; }
+
+.ocr-loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85); color: white; padding: 20px 28px;
+    border-radius: 12px; font-size: 0.95em; display: none;
+}
+.ocr-loading.active { display: block; }
+.ocr-spinner-mini {
+    display: inline-block; width: 14px; height: 14px; border: 2px solid white;
+    border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;
+    margin-right: 8px; vertical-align: middle;
+}
+
+/* Erro câmera */
+.camera-error {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: #C0392B; color: white; padding: 20px; border-radius: 12px;
+    text-align: center; max-width: 85%; display: none;
+}
+.camera-error.active { display: block; }
+.camera-error-icon { font-size: 2.5em; margin-bottom: 12px; }
+.camera-error-text { font-size: 0.9em; line-height: 1.4; }
+
+/* Vazio */
+.vazio { text-align: center; padding: 40px 20px; color: #888; }
+.vazio-icon { font-size: 3em; margin-bottom: 12px; }
+
+/* Export */
+.export-options { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.export-btn { padding: 14px; background: #F58220; color: white; border: none; border-radius: 8px; font-size: 0.95em; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; -webkit-appearance: none; }
+.export-btn-icon { font-size: 1.4em; }
+
+/* Toast */
+.toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.85); color: white; padding: 12px 20px; border-radius: 8px;
+    z-index: 2500; font-size: 0.9em; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; max-width: 85%; text-align: center;
+}
+.toast.show { opacity: 1; }
+
+.confirm-dialog .modal { max-width: 340px; margin: 0 auto; border-radius: 16px; }
+.confirm-text { font-size: 0.9em; margin-bottom: 16px; text-align: center; color: #555; }
+.confirm-warning { background: #FFEDED; color: #C0392B; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+
+<div class="splash" id="splash">
+    <div class="splash-icon">📦</div>
+    <div>Carregando contagem...</div>
+    <div class="splash-spinner"></div>
+    <div class="splash-progress" id="splash-progress">Inicializando...</div>
+</div>
+
+<div class="header">
+    <h1>📦 Contagem São Paulo</h1>
+    <div class="subtitle">projetoflash • 746 produtos</div>
+</div>
+
+<div class="stats">
+    <div class="stat"><div class="stat-val total" id="stat-total">0</div><div class="stat-lbl">Total</div></div>
+    <div class="stat"><div class="stat-val contados" id="stat-contados">0</div><div class="stat-lbl">Contados</div></div>
+    <div class="stat"><div class="stat-val faltam" id="stat-faltam">0</div><div class="stat-lbl">Faltam</div></div>
+    <div class="stat"><div class="stat-val sobram" id="stat-sobram">0</div><div class="stat-lbl">Sobram</div></div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width: 0%"></div></div>
+
+<div class="tabs">
+    <div class="tab active" data-tab="todos">Todos <span class="tab-count" id="cnt-todos">(0)</span></div>
+    <div class="tab" data-tab="pendentes">⏳ Pendentes <span class="tab-count" id="cnt-pendentes">(0)</span></div>
+    <div class="tab" data-tab="contados">✅ OK <span class="tab-count" id="cnt-contados">(0)</span></div>
+    <div class="tab" data-tab="divergentes">⚠️ Diverg. <span class="tab-count" id="cnt-divergentes">(0)</span></div>
+</div>
+
+<div class="search-container">
+    <input type="text" id="search" class="search-input" placeholder="🔍 Nome, SKU ou EAN..." autocomplete="off">
+    <button class="btn-camera" onclick="abrirCamera()" type="button">📷</button>
+</div>
+<div class="search-hint">💡 Use o botão 📷 para ler código de barras ou texto da embalagem</div>
+
+<div class="lista" id="lista"></div>
+
+<!-- Modal de contagem -->
+<div class="modal-overlay" id="modal-contagem">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-titulo" id="modal-titulo"></div>
+        <div class="modal-variacao" id="modal-variacao"></div>
+        
+        <div class="modal-info">
+            <div class="modal-info-row"><span class="modal-info-lbl">SKU:</span><span class="modal-info-val" id="modal-sku">-</span></div>
+            <div class="modal-info-row"><span class="modal-info-lbl">EAN:</span><span class="modal-info-val" id="modal-ean">-</span></div>
+            <div class="modal-info-row"><span class="modal-info-lbl">Preço:</span><span class="modal-info-val" id="modal-preco">-</span></div>
+            <div class="modal-info-row"><span class="modal-info-lbl">Sistema Shopee:</span><span class="modal-info-val" id="modal-sistema">-</span></div>
+        </div>
+        
+        <div class="qty-section">
+            <div class="qty-label">📦 Quantidade contada no físico</div>
+            <div class="qty-controls">
+                <button class="qty-btn" onclick="changeQty(-1)" type="button">−</button>
+                <input type="number" class="qty-input" id="qty-input" value="0" min="0" inputmode="numeric" pattern="[0-9]*">
+                <button class="qty-btn" onclick="changeQty(1)" type="button">+</button>
+            </div>
+        </div>
+        
+        <div class="divergencia-display div-display-zero" id="div-display">Diferença: 0</div>
+        
+        <textarea class="obs-input" id="obs-input" placeholder="📝 Observação (opcional)"></textarea>
+        
+        <div class="btn-group">
+            <button class="btn btn-cancel" onclick="fecharModal()" type="button">Cancelar</button>
+            <button class="btn btn-save" onclick="salvarContagem()" type="button">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Câmera -->
+<div class="camera-overlay" id="camera-overlay">
+    <div class="camera-header">
+        <div class="camera-title" id="camera-titulo">📷 Câmera</div>
+        <button class="camera-close" onclick="fecharCamera()" type="button">✕</button>
+    </div>
+    
+    <video id="video-elem" autoplay playsinline muted></video>
+    
+    <div class="scan-overlay" id="scan-overlay">
+        <div class="scan-frame"><div class="scan-line"></div></div>
+    </div>
+    
+    <div class="scan-info" id="scan-info">📸 Posicione o código de barras na área marcada</div>
+    
+    <div class="ocr-loading" id="ocr-loading"><span class="ocr-spinner-mini"></span> Lendo texto...</div>
+    
+    <div class="camera-error" id="camera-error">
+        <div class="camera-error-icon">📵</div>
+        <div class="camera-error-text" id="camera-error-text"></div>
+    </div>
+    
+    <div class="ocr-result" id="ocr-result">
+        <div class="ocr-result-title">📝 Texto detectado:</div>
+        <div class="ocr-text" id="ocr-text"></div>
+        <div id="ocr-matches"></div>
+    </div>
+    
+    <div class="camera-controls">
+        <button class="cam-btn active" id="btn-mode-barcode" onclick="setMode('barcode')" type="button">
+            <span class="cam-btn-icon">📊</span><span>Cód. Barras</span>
+        </button>
+        <button class="cam-btn" id="btn-mode-ocr" onclick="setMode('ocr')" type="button">
+            <span class="cam-btn-icon">📝</span><span>Ler Texto</span>
+        </button>
+        <button class="cam-btn capture" id="btn-capture" onclick="capturarTexto()" type="button" style="display: none;">
+            <span class="cam-btn-icon">📸</span><span>Capturar</span>
+        </button>
+    </div>
+</div>
+
+<!-- Modal exportação -->
+<div class="modal-overlay" id="modal-export">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-titulo">📤 Exportar Resultado</div>
+        <p style="font-size: 0.9em; color: #666; margin: 8px 0;">Escolha o formato:</p>
+        
+        <div class="export-options">
+            <button class="export-btn" onclick="exportarCSV('todos')" type="button">
+                <span class="export-btn-icon">📊</span>
+                <div style="text-align: left;">
+                    <div>Exportar Tudo (CSV)</div>
+                    <div style="font-size: 0.7em; opacity: 0.9; font-weight: normal;">Todos contados e pendentes</div>
+                </div>
+            </button>
+            <button class="export-btn" style="background: #C0392B;" onclick="exportarCSV('divergentes')" type="button">
+                <span class="export-btn-icon">⚠️</span>
+                <div style="text-align: left;">
+                    <div>Apenas Divergências</div>
+                    <div style="font-size: 0.7em; opacity: 0.9; font-weight: normal;">Pra corrigir no Shopee</div>
+                </div>
+            </button>
+            <button class="export-btn" style="background: #27AE60;" onclick="exportarCSV('contados')" type="button">
+                <span class="export-btn-icon">✅</span>
+                <div style="text-align: left;">
+                    <div>Apenas Contados</div>
+                    <div style="font-size: 0.7em; opacity: 0.9; font-weight: normal;">Todos os conferidos</div>
+                </div>
+            </button>
+        </div>
+        
+        <button class="btn btn-cancel" onclick="fecharExport()" type="button" style="margin-top: 16px;">Cancelar</button>
+    </div>
+</div>
+
+<!-- Reset -->
+<div class="modal-overlay confirm-dialog" id="modal-reset">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-titulo">🔄 Resetar Contagem?</div>
+        <div class="confirm-warning">⚠️ Isso vai apagar TODAS as contagens já feitas. Não pode ser desfeito!</div>
+        <p class="confirm-text">Recomendamos exportar antes de resetar.</p>
+        <div class="btn-group">
+            <button class="btn btn-cancel" onclick="fecharReset()" type="button">Cancelar</button>
+            <button class="btn btn-save" style="background: #C0392B;" onclick="confirmarReset()" type="button">Resetar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom bar -->
+<div class="bottom-bar">
+    <button class="bottom-btn" onclick="abrirReset()" type="button">
+        <span class="bottom-btn-icon">🔄</span><span>Reset</span>
+    </button>
+    <button class="bottom-btn camera" onclick="abrirCamera()" type="button">
+        <span class="bottom-btn-icon">📷</span><span>Câmera</span>
+    </button>
+    <button class="bottom-btn primary" onclick="abrirExport()" type="button">
+        <span class="bottom-btn-icon">📤</span><span>Exportar</span>
+    </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== INICIALIZAÇÃO ====================
+const LOJA = "São Paulo";
+const STORAGE_KEY = "contagem_flash_sp";
+
+let PRODUTOS = [];
+let contagens = {};
+let abaAtiva = 'todos';
+let busca = '';
+let modalProduto = null;
+let cameraMode = 'barcode';
+let videoStream = null;
+let scanInterval = null;
+let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+let barcodeDetector = null;
+
+function setProgress(msg) {
+    const el = document.getElementById('splash-progress');
+    if (el) el.textContent = msg;
+}
+
+// Carregar dados de forma assíncrona pra não travar
+async function carregarDados() {
+    setProgress('Carregando produtos...');
+    try {
+        const dadosStr = document.getElementById('dados-json').textContent;
+        PRODUTOS = JSON.parse(dadosStr);
+        setProgress(`${PRODUTOS.length} produtos carregados`);
+        return true;
+    } catch (e) {
+        console.error('Erro ao carregar dados:', e);
+        document.getElementById('splash').innerHTML = `
+            <div class="splash-icon">⚠️</div>
+            <div>Erro ao carregar dados</div>
+            <div class="splash-progress">${e.message}</div>
+        `;
+        return false;
+    }
+}
+
+function carregarContagens() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        if (data) contagens = JSON.parse(data);
+    } catch (e) { console.error("Erro ao carregar contagens:", e); }
+}
+
+function salvarTudo() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(contagens)); }
+    catch (e) { console.error("Erro ao salvar:", e); toast("⚠️ Erro ao salvar localmente"); }
+}
+
+// ==================== STATS ====================
+function calcStats() {
+    let total = PRODUTOS.length, contados = 0, faltam = 0, sobram = 0;
+    Object.entries(contagens).forEach(([idx, c]) => {
+        if (c.qtd !== undefined && c.qtd !== null && c.qtd !== '') {
+            contados++;
+            const prod = PRODUTOS[parseInt(idx)];
+            if (!prod) return;
+            const div = parseInt(c.qtd) - prod.qtd_sistema;
+            if (div < 0) faltam++;
+            else if (div > 0) sobram++;
+        }
+    });
+    return { total, contados, faltam, sobram, pendentes: total - contados };
+}
+
+function updateStats() {
+    const s = calcStats();
+    document.getElementById('stat-total').textContent = s.total;
+    document.getElementById('stat-contados').textContent = s.contados;
+    document.getElementById('stat-faltam').textContent = s.faltam;
+    document.getElementById('stat-sobram').textContent = s.sobram;
+    const pct = s.total > 0 ? (s.contados / s.total * 100) : 0;
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('cnt-todos').textContent = `(${s.total})`;
+    document.getElementById('cnt-pendentes').textContent = `(${s.pendentes})`;
+    document.getElementById('cnt-contados').textContent = `(${s.contados})`;
+    document.getElementById('cnt-divergentes').textContent = `(${s.faltam + s.sobram})`;
+}
+
+// ==================== LISTA ====================
+function renderLista() {
+    let lista = PRODUTOS.slice();
+    if (abaAtiva === 'pendentes') {
+        lista = lista.filter(p => !contagens[p.idx] || contagens[p.idx].qtd === undefined || contagens[p.idx].qtd === '');
+    } else if (abaAtiva === 'contados') {
+        lista = lista.filter(p => contagens[p.idx] && contagens[p.idx].qtd !== undefined && contagens[p.idx].qtd !== '');
+    } else if (abaAtiva === 'divergentes') {
+        lista = lista.filter(p => {
+            const c = contagens[p.idx];
+            if (!c || c.qtd === undefined || c.qtd === '') return false;
+            return parseInt(c.qtd) !== p.qtd_sistema;
+        });
+    }
+    if (busca) {
+        const b = busca.toLowerCase().trim();
+        lista = lista.filter(p =>
+            p.produto.toLowerCase().includes(b) ||
+            p.variacao.toLowerCase().includes(b) ||
+            p.sku.toLowerCase().includes(b) ||
+            p.ean.toLowerCase().includes(b)
+        );
+    }
+    const container = document.getElementById('lista');
+    if (lista.length === 0) {
+        container.innerHTML = `<div class="vazio"><div class="vazio-icon">📭</div><div>Nenhum produto encontrado</div></div>`;
+        return;
+    }
+    const MAX = 50;
+    const mostrar = lista.slice(0, MAX);
+    let html = '';
+    for (const p of mostrar) {
+        const c = contagens[p.idx];
+        let classe = '';
+        let stats = `<div class="produto-stat"><span class="produto-stat-lbl">Sistema</span><span class="produto-stat-val">${p.qtd_sistema}</span></div>`;
+        if (c && c.qtd !== undefined && c.qtd !== '') {
+            const div = parseInt(c.qtd) - p.qtd_sistema;
+            classe = div === 0 ? 'contado' : (div > 0 ? 'sobra' : 'falta');
+            const divClass = div === 0 ? 'div-zero' : (div > 0 ? 'div-pos' : 'div-neg');
+            const sinal = div > 0 ? '+' : '';
+            stats += `<div class="produto-stat"><span class="produto-stat-lbl">Contado</span><span class="produto-stat-val">${c.qtd}</span></div>
+                <div class="produto-stat"><span class="produto-stat-lbl">Dif.</span><span class="produto-stat-val ${divClass}">${sinal}${div}</span></div>`;
+        }
+        html += `<div class="produto-card ${classe}" onclick="abrirContagem(${p.idx})">
+            <div class="produto-nome">${escapeHtml(p.produto)}</div>
+            ${p.variacao ? `<div class="produto-variacao">${escapeHtml(p.variacao)}</div>` : ''}
+            <div class="produto-sku">${p.sku ? 'SKU: ' + escapeHtml(p.sku) : ''}${p.sku && p.ean ? ' • ' : ''}${p.ean ? 'EAN: ' + escapeHtml(p.ean) : ''}</div>
+            <div class="produto-stats">${stats}</div>
+        </div>`;
+    }
+    container.innerHTML = html;
+    if (lista.length > MAX) {
+        container.innerHTML += `<div class="vazio" style="padding: 20px;">📋 Mostrando ${MAX} de ${lista.length}. Refine a busca pra ver mais.</div>`;
+    }
+}
+
+function escapeHtml(s) {
+    if (!s) return '';
+    return s.toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ==================== MODAL CONTAGEM ====================
+function abrirContagem(idx) {
+    modalProduto = PRODUTOS[idx];
+    const c = contagens[idx] || {};
+    document.getElementById('modal-titulo').textContent = modalProduto.produto;
+    document.getElementById('modal-variacao').textContent = modalProduto.variacao || '';
+    document.getElementById('modal-sku').textContent = modalProduto.sku || '-';
+    document.getElementById('modal-ean').textContent = modalProduto.ean || '-';
+    document.getElementById('modal-preco').textContent = 'R$ ' + (modalProduto.preco || 0).toFixed(2).replace('.', ',');
+    document.getElementById('modal-sistema').textContent = modalProduto.qtd_sistema + ' un';
+    const qtdInput = document.getElementById('qty-input');
+    qtdInput.value = c.qtd !== undefined && c.qtd !== '' ? c.qtd : modalProduto.qtd_sistema;
+    document.getElementById('obs-input').value = c.obs || '';
+    updateDivergencia();
+    document.getElementById('modal-contagem').classList.add('active');
+}
+
+function fecharModal() {
+    document.getElementById('modal-contagem').classList.remove('active');
+    modalProduto = null;
+}
+
+function changeQty(delta) {
+    const input = document.getElementById('qty-input');
+    let v = parseInt(input.value) || 0;
+    v = Math.max(0, v + delta);
+    input.value = v;
+    updateDivergencia();
+}
+
+function updateDivergencia() {
+    if (!modalProduto) return;
+    const qtd = parseInt(document.getElementById('qty-input').value) || 0;
+    const div = qtd - modalProduto.qtd_sistema;
+    const display = document.getElementById('div-display');
+    display.className = 'divergencia-display ';
+    if (div === 0) { display.className += 'div-display-zero'; display.textContent = '✅ Bateu certinho!'; }
+    else if (div > 0) { display.className += 'div-display-pos'; display.textContent = `🟠 Sobra: +${div} unidades`; }
+    else { display.className += 'div-display-neg'; display.textContent = `🔴 Falta: ${div} unidades`; }
+}
+
+function salvarContagem() {
+    if (!modalProduto) return;
+    contagens[modalProduto.idx] = {
+        qtd: parseInt(document.getElementById('qty-input').value) || 0,
+        obs: document.getElementById('obs-input').value.trim(),
+        data: new Date().toISOString()
+    };
+    salvarTudo();
+    updateStats();
+    renderLista();
+    fecharModal();
+    toast('✅ Contagem salva!');
+}
+
+// ==================== CÂMERA ====================
+async function abrirCamera() {
+    // Verificar suporte
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast('❌ Câmera não suportada nesse navegador');
+        return;
+    }
+    
+    document.getElementById('camera-overlay').classList.add('active');
+    document.getElementById('camera-error').classList.remove('active');
+    await setMode('barcode');
+}
+
+async function fecharCamera() {
+    pararCamera();
+    document.getElementById('camera-overlay').classList.remove('active');
+    document.getElementById('ocr-result').classList.remove('active');
+}
+
+async function setMode(modo) {
+    cameraMode = modo;
+    document.getElementById('btn-mode-barcode').classList.toggle('active', modo === 'barcode');
+    document.getElementById('btn-mode-ocr').classList.toggle('active', modo === 'ocr');
+    document.getElementById('btn-capture').style.display = modo === 'ocr' ? 'flex' : 'none';
+    document.getElementById('ocr-result').classList.remove('active');
+    document.getElementById('camera-error').classList.remove('active');
+    
+    if (modo === 'barcode') {
+        document.getElementById('camera-titulo').textContent = '📊 Código de Barras';
+        document.getElementById('scan-info').textContent = '📸 Posicione o código na área marcada';
+        document.getElementById('scan-overlay').style.display = 'flex';
+        await iniciarCamera();
+        iniciarScan();
+    } else {
+        pararScan();
+        document.getElementById('camera-titulo').textContent = '📝 Ler Texto';
+        document.getElementById('scan-info').textContent = '📸 Aponte para o nome do produto e toque CAPTURAR';
+        document.getElementById('scan-overlay').style.display = 'none';
+        await iniciarCamera();
+    }
+}
+
+async function iniciarCamera() {
+    if (videoStream) return; // já está rodando
+    
+    try {
+        const constraints = {
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const video = document.getElementById('video-elem');
+        video.srcObject = videoStream;
+        await video.play();
+    } catch (e) {
+        console.error('Erro câmera:', e);
+        let msg = 'Não foi possível acessar a câmera.';
+        if (e.name === 'NotAllowedError') {
+            msg = 'Você precisa permitir o acesso à câmera!<br><br>Vá nas configurações do navegador e permita a câmera para esse site.';
+        } else if (e.name === 'NotFoundError') {
+            msg = 'Nenhuma câmera encontrada nesse dispositivo.';
+        } else if (location.protocol !== 'https:' && location.protocol !== 'file:') {
+            msg = 'A câmera precisa de HTTPS!<br><br>Hospede esse arquivo no GitHub Pages.';
+        }
+        document.getElementById('camera-error-text').innerHTML = msg;
+        document.getElementById('camera-error').classList.add('active');
+    }
+}
+
+function pararCamera() {
+    pararScan();
+    if (videoStream) {
+        videoStream.getTracks().forEach(t => t.stop());
+        videoStream = null;
+        document.getElementById('video-elem').srcObject = null;
+    }
+}
+
+// ==================== SCAN CÓDIGO DE BARRAS ====================
+async function iniciarScan() {
+    pararScan();
+    
+    // Tentar usar BarcodeDetector nativo (Android Chrome moderno)
+    if ('BarcodeDetector' in window) {
+        try {
+            barcodeDetector = new BarcodeDetector({
+                formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'qr_code']
+            });
+            scanInterval = setInterval(scanFrame, 500);
+            return;
+        } catch (e) { console.warn('BarcodeDetector falhou, tentando ZXing...'); }
+    }
+    
+    // Fallback: ZXing-js (funciona em iOS e Android)
+    try {
+        if (!window.ZXing) {
+            await carregarScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.21.0/umd/index.min.js');
+        }
+        if (!window.ZXing) {
+            document.getElementById('scan-info').innerHTML = '<div class="scan-result-box" style="background: rgba(192, 57, 43, 0.95);">⚠️ Leitor de código não carregou. Use a busca por texto.</div>';
+            return;
+        }
+        
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        const video = document.getElementById('video-elem');
+        
+        codeReader.decodeFromVideoDevice(null, video, (result, err) => {
+            if (result) {
+                processarCodigoBarras(result.getText());
+            }
+        });
+        
+        // Armazena pra parar depois
+        window._codeReader = codeReader;
+    } catch (e) {
+        console.error('Erro ZXing:', e);
+        document.getElementById('scan-info').innerHTML = '<div class="scan-result-box" style="background: rgba(192, 57, 43, 0.95);">⚠️ Erro no scanner. Use a busca por texto.</div>';
+    }
+}
+
+async function scanFrame() {
+    if (!barcodeDetector) return;
+    const video = document.getElementById('video-elem');
+    if (!video.videoWidth) return;
+    
+    try {
+        const codes = await barcodeDetector.detect(video);
+        if (codes.length > 0) {
+            processarCodigoBarras(codes[0].rawValue);
+        }
+    } catch (e) {}
+}
+
+function pararScan() {
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    if (window._codeReader) {
+        try { window._codeReader.reset(); } catch (e) {}
+        window._codeReader = null;
+    }
+}
+
+let ultimoCodigo = '';
+let ultimoTime = 0;
+function processarCodigoBarras(codigo) {
+    if (!codigo) return;
+    const now = Date.now();
+    // Evita ler o mesmo código várias vezes
+    if (codigo === ultimoCodigo && (now - ultimoTime) < 3000) return;
+    ultimoCodigo = codigo;
+    ultimoTime = now;
+    
+    // Vibração
+    if (navigator.vibrate) try { navigator.vibrate(150); } catch(e) {}
+    
+    // Procurar produto pelo EAN
+    const produto = PRODUTOS.find(p => p.ean && p.ean.includes(codigo));
+    
+    if (produto) {
+        document.getElementById('scan-info').innerHTML = `<div class="scan-result-box">✅ ${escapeHtml(produto.produto.substring(0, 60))}</div>`;
+        if (navigator.vibrate) try { navigator.vibrate([100, 50, 100]); } catch(e) {}
+        setTimeout(() => {
+            fecharCamera();
+            abrirContagem(produto.idx);
+        }, 800);
+    } else {
+        document.getElementById('scan-info').innerHTML = `<div class="scan-result-box" style="background: rgba(192, 57, 43, 0.95);">❌ Código ${codigo} não encontrado</div>`;
+        setTimeout(() => {
+            document.getElementById('scan-info').textContent = '📸 Posicione o código na área marcada';
+            ultimoCodigo = '';
+        }, 2500);
+    }
+}
+
+// ==================== OCR ====================
+async function capturarTexto() {
+    const video = document.getElementById('video-elem');
+    if (!video.videoWidth) {
+        toast('⚠️ Câmera ainda carregando...');
+        return;
+    }
+    
+    // Capturar frame
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    
+    document.getElementById('ocr-loading').classList.add('active');
+    
+    try {
+        // Carregar Tesseract se ainda não
+        if (typeof Tesseract === 'undefined') {
+            document.getElementById('ocr-loading').innerHTML = '<span class="ocr-spinner-mini"></span> Baixando OCR (primeira vez)...';
+            await carregarScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+        }
+        
+        document.getElementById('ocr-loading').innerHTML = '<span class="ocr-spinner-mini"></span> Lendo texto...';
+        
+        const result = await Tesseract.recognize(canvas, 'por', {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    document.getElementById('ocr-loading').innerHTML = 
+                        `<span class="ocr-spinner-mini"></span> Lendo... ${Math.round(m.progress * 100)}%`;
+                } else if (m.status === 'loading language traineddata') {
+                    document.getElementById('ocr-loading').innerHTML = 
+                        `<span class="ocr-spinner-mini"></span> Baixando português... ${Math.round(m.progress * 100)}%`;
+                }
+            }
+        });
+        
+        document.getElementById('ocr-loading').classList.remove('active');
+        
+        const text = result.data.text;
+        if (!text || text.trim().length < 3) {
+            toast('❌ Não consegui ler o texto. Tente novamente.');
+            return;
+        }
+        
+        const matches = buscarProdutosPorTexto(text);
+        document.getElementById('ocr-text').textContent = text.trim().substring(0, 200);
+        
+        const matchesDiv = document.getElementById('ocr-matches');
+        if (matches.length === 0) {
+            matchesDiv.innerHTML = '<div style="color: #C0392B; padding: 8px;">❌ Nenhum produto encontrado</div>';
+        } else {
+            matchesDiv.innerHTML = '<div style="font-weight: 600; margin-bottom: 8px; font-size: 0.85em;">🎯 Possíveis correspondências:</div>' +
+                matches.slice(0, 5).map(m => `
+                    <div class="ocr-match" onclick="fecharCamera(); setTimeout(() => abrirContagem(${m.produto.idx}), 300)">
+                        <div class="ocr-match-name">${escapeHtml(m.produto.produto)}</div>
+                        <div class="ocr-match-info">${m.produto.variacao ? escapeHtml(m.produto.variacao) + ' • ' : ''}Estoque: ${m.produto.qtd_sistema}</div>
+                    </div>
+                `).join('');
+        }
+        
+        document.getElementById('ocr-result').classList.add('active');
+        
+    } catch (e) {
+        console.error('Erro OCR:', e);
+        document.getElementById('ocr-loading').classList.remove('active');
+        toast('❌ Erro ao processar. Verifique a internet.');
+    }
+}
+
+function buscarProdutosPorTexto(texto) {
+    const palavras = texto.toLowerCase()
+        .replace(/[^a-záàâãéèêíìîóòôõúùûç0-9\s]/gi, ' ')
+        .split(/\s+/)
+        .filter(p => p.length >= 3);
+    if (palavras.length === 0) return [];
+    
+    const matches = PRODUTOS.map(p => {
+        const nome = (p.produto + ' ' + p.variacao).toLowerCase();
+        let score = 0;
+        palavras.forEach(palavra => {
+            if (nome.includes(palavra)) score += palavra.length;
+        });
+        return { produto: p, score };
+    }).filter(m => m.score > 0).sort((a, b) => b.score - a.score);
+    return matches;
+}
+
+// ==================== UTILIDADES ====================
+function carregarScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Falha ao carregar ' + src));
+        document.head.appendChild(script);
+    });
+}
+
+let toastTimer;
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ==================== EVENTOS ====================
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        abaAtiva = tab.dataset.tab;
+        renderLista();
+    });
+});
+
+let buscaTimer;
+document.getElementById('search').addEventListener('input', e => {
+    clearTimeout(buscaTimer);
+    buscaTimer = setTimeout(() => {
+        busca = e.target.value;
+        renderLista();
+    }, 200);
+});
+
+document.getElementById('qty-input').addEventListener('input', updateDivergencia);
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.classList.remove('active');
+    });
+});
+
+// ==================== EXPORT ====================
+function abrirExport() { document.getElementById('modal-export').classList.add('active'); }
+function fecharExport() { document.getElementById('modal-export').classList.remove('active'); }
+
+function exportarCSV(tipo) {
+    fecharExport();
+    let lista = PRODUTOS.slice();
+    if (tipo === 'divergentes') {
+        lista = lista.filter(p => {
+            const c = contagens[p.idx];
+            if (!c || c.qtd === undefined || c.qtd === '') return false;
+            return parseInt(c.qtd) !== p.qtd_sistema;
+        });
+    } else if (tipo === 'contados') {
+        lista = lista.filter(p => contagens[p.idx] && contagens[p.idx].qtd !== undefined && contagens[p.idx].qtd !== '');
+    }
+    if (lista.length === 0) { toast('⚠️ Nenhum produto para exportar'); return; }
+    
+    let csv = '\uFEFF';
+    csv += 'ID Produto;Produto;Variacao;SKU;EAN;Preco;Qtd Sistema;Qtd Contada;Divergencia;Observacao;Data Contagem\n';
+    
+    lista.forEach(p => {
+        const c = contagens[p.idx] || {};
+        const qtdContada = c.qtd !== undefined ? c.qtd : '';
+        const divergencia = qtdContada !== '' ? (parseInt(qtdContada) - p.qtd_sistema) : '';
+        const data = c.data ? new Date(c.data).toLocaleString('pt-BR') : '';
+        const linha = [p.id, p.produto, p.variacao, p.sku, p.ean,
+            (p.preco || 0).toFixed(2).replace('.', ','), p.qtd_sistema, qtdContada, divergencia,
+            (c.obs || '').replace(/[\n\r]/g, ' '), data]
+            .map(v => `"${(v + '').replace(/"/g, '""')}"`).join(';');
+        csv += linha + '\n';
+    });
+    
+    const dataStr = new Date().toISOString().slice(0, 10);
+    const filename = `Contagem_${LOJA}_${tipo}_${dataStr}.csv`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    
+    // iOS Safari requires different approach
+    if (isIOS) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => document.body.removeChild(link), 100);
+    } else {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    toast(`✅ ${lista.length} produtos exportados!`);
+}
+
+// ==================== RESET ====================
+function abrirReset() { document.getElementById('modal-reset').classList.add('active'); }
+function fecharReset() { document.getElementById('modal-reset').classList.remove('active'); }
+function confirmarReset() {
+    contagens = {};
+    salvarTudo();
+    updateStats();
+    renderLista();
+    fecharReset();
+    toast('🔄 Contagem resetada');
+}
+
+window.addEventListener('beforeunload', salvarTudo);
+
+// ==================== INICIALIZAR ====================
+(async function init() {
+    setProgress('Iniciando...');
+    
+    const ok = await carregarDados();
+    if (!ok) return;
+    
+    setProgress('Carregando contagens salvas...');
+    carregarContagens();
+    
+    setProgress('Renderizando lista...');
+    updateStats();
+    renderLista();
+    
+    // Esconder splash
+    setTimeout(() => {
+        document.getElementById('splash').style.display = 'none';
+    }, 300);
+})();
+</script>
+
+<!-- Dados em formato seguro pra não travar o parser -->
+<script id="dados-json" type="application/json">[{"id": "22499354415.0", "produto": "1t/64g Ssd 2,5 Discos Internos De La Unidad De Estado Sólido", "variacao": "", "sku": "", "ean": "0.0", "preco": 899.9, "qtd_sistema": 0, "idx": 0}, {"id": "22394956456.0", "produto": "2026 novo estilo compatível Lego Cyberpunk modelo de carro esportivo Lamborghini brinquedo infantil.", "variacao": "", "sku": "", "ean": "0.0", "preco": 129.99, "qtd_sistema": 0, "idx": 1}, {"id": "58205321745.0", "produto": "220v 0.75kw/1.5kw/2.2kw 1hp/2hp/3hp econômico mini vfd conversor de frequência variável.", "variacao": "", "sku": "", "ean": "0.0", "preco": 600.0, "qtd_sistema": 0, "idx": 2}, {"id": "58213049808.0", "produto": "3 LIVROS CAPA DURA MARKETING DE CONTEÚDO- MARKETING DE PERMISSÂO/ STORY NOMICS/ O FIM DO MARKETING.", "variacao": "", "sku": "", "ean": "0.0", "preco": 250.0, "qtd_sistema": 1, "idx": 3}, {"id": "58259821340.0", "produto": "360 ° Pressão De Ar Massageador De Panturrilha Máquina De Presoterapia 3 Modos Pé Perna Relaxamento.", "variacao": "", "sku": "", "ean": "0.0", "preco": 139.0, "qtd_sistema": 0, "idx": 4}, {"id": "58253638602.0", "produto": "8BitDo-Novo Controlador De Jogos  Ultimate 2C Para PC , Windows 10 , 11 , Steam Deck , Raspberry Pi , Android", "variacao": "", "sku": "", "ean": "0.0", "preco": 156.0, "qtd_sistema": 0, "idx": 5}, {"id": "23294856147.0", "produto": "8bitdo últimate c Wireld Game controlador para Xbox séries Xs onde.", "variacao": "", "sku": "", "ean": "0.0", "preco": 215.0, "qtd_sistema": 0, "idx": 6}, {"id": "58205357270.0", "produto": "A Hipótese Do Amor - Edição Especial + Marca Página - Ali Hazelwood", "variacao": "", "sku": "", "ean": "0.0", "preco": 54.6, "qtd_sistema": 0, "idx": 7}, {"id": "58211506374.0", "produto": "ADPTADOR HDMI BITFUNX GAMECUBE/ N64/SUPER NINTENDO + CABO HDMI.", "variacao": "", "sku": "", "ean": "0.0", "preco": 150.0, "qtd_sistema": 0, "idx": 8}, {"id": "58204544447.0", "produto": "AFR2000 Filtro regulador de pressão de ar compressor de aerógrafo, separador de óleo de água, 1 peça", "variacao": "", "sku": "", "ean": "0.0", "preco": 40.0, "qtd_sistema": 0, "idx": 9}, {"id": "58211765003.0", "produto": "ALTO FALATE PIONEER TS-1360BR 5 POLEGADAS 180W TRIAXIAL PRETO- O PAR.", "variacao": "", "sku": "", "ean": "0.0", "preco": 205.0, "qtd_sistema": 1, "idx": 10}, {"id": "58205119503.0", "produto": "AMD RYZEN 55600", "variacao": "", "sku": "", "ean": "0.0", "preco": 830.0, "qtd_sistema": 0, "idx": 11}, {"id": "58205064583.0", "produto": "ATERMITER MEMORIA RAM 8 GB DDR4 2133MHz", "variacao": "", "sku": "", "ean": "0.0", "preco": 140.0, "qtd_sistema": 0, "idx": 12}, {"id": "58254082665.0", "produto": "Abafador Esportivo Moto Universal + Kit Instalação Dbkiller", "variacao": "", "sku": "", "ean": "0.0", "preco": 386.1, "qtd_sistema": 0, "idx": 13}, {"id": "58259352085.0", "produto": "Adaptador Conversor Compatível Com HDMI Chave RGB & YPbPr PlayStation 1/2 PS1/PS2.", "variacao": "", "sku": "", "ean": "0.0", "preco": 95.0, "qtd_sistema": 0, "idx": 14}, {"id": "58203856227.0", "produto": "Adaptador Smartphone Suporte Gps Bmw F900gs F 900 Gs 900", "variacao": "", "sku": "", "ean": "0.0", "preco": 504.0, "qtd_sistema": 0, "idx": 15}, {"id": "58259227515.0", "produto": "Adaptador suporte para celular para motos BMW F750 F800 F850 F900 R1250 R1300 GS Todas Carregamento.", "variacao": "", "sku": "", "ean": "0.0", "preco": 180.0, "qtd_sistema": 0, "idx": 16}, {"id": "58253600299.0", "produto": "Aigo Cpu Cooler Gamer Rgb Ice400se (compativel Amd E Intel)", "variacao": "", "sku": "", "ean": "0.0", "preco": 139.99, "qtd_sistema": 0, "idx": 17}, {"id": "58260691609.0", "produto": "Air cooler Processador  Thermalright Phantom Spirit   120Evo.", "variacao": "", "sku": "", "ean": "0.0", "preco": 400.0, "qtd_sistema": 0, "idx": 18}, {"id": "58209833896.0", "produto": "Air cooler Ruix  X2000 RGB 2  H Intel/Amd", "variacao": "", "sku": "", "ean": "0.0", "preco": 90.0, "qtd_sistema": 1, "idx": 19}, {"id": "58204422480.0", "produto": "Ajazz AK680 (versão sem fio), que é o modelo de entrada \"queridinho\" de quem busca economia extrema:", "variacao": "", "sku": "", "ean": "6976412981159.0", "preco": 140.0, "qtd_sistema": 0, "idx": 20}, {"id": "23994813871.0", "produto": "Ajazz AK820 Pro (Black-Gray-Yellow) SWIT", "variacao": "", "sku": "", "ean": "6976412980879.0", "preco": 465.0, "qtd_sistema": 0, "idx": 21}, {"id": "58204479716.0", "produto": "Ajazz Ak820 teclado mecânico com fio botão multifuncional baixo latência jogo escritório computador jogador acessórios", "variacao": "", "sku": "", "ean": "6976412980152.0", "preco": 235.0, "qtd_sistema": 0, "idx": 22}, {"id": "22499359496.0", "produto": "Ak55 amplificador de música compatível com bluetooth, para casa, carro, karaokê, 2 canais, alta fidelidade, estéreo, fm,", "variacao": "", "sku": "", "ean": "0.0", "preco": 146.0, "qtd_sistema": 0, "idx": 23}, {"id": "58212953387.0", "produto": "Alto-falante bluetooth sem fio xdobo x8 plus ii portátil ao ar livre luz rgb 80w de alta potência som surround.", "variacao": "", "sku": "", "ean": "0.0", "preco": 299.99, "qtd_sistema": 0, "idx": 24}, {"id": "58254474199.0", "produto": "Analisador De Saúde Por Ressonância Magnética Quântica 2025: Múltiplos Relatórios E Diagnóstico.", "variacao": "", "sku": "", "ean": "0.0", "preco": 422.0, "qtd_sistema": 0, "idx": 25}, {"id": "58212674945.0", "produto": "Anel Corta-Gotas para Garrafa de Vinho.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1.99, "qtd_sistema": 160, "idx": 26}, {"id": "58205477545.0", "produto": "Angxun/Angthumb/XLZ A88X+FM2-V2.11 -", "variacao": "", "sku": "", "ean": "0.0", "preco": 220.0, "qtd_sistema": 0, "idx": 27}, {"id": "22494852162.0", "produto": "Antes de partir", "variacao": "", "sku": "", "ean": "0.0", "preco": 23.9, "qtd_sistema": 0, "idx": 28}, {"id": "58262118511.0", "produto": "Aparelho De Fototerapia Portátil  Para Uso Em Casa.", "variacao": "", "sku": "", "ean": "0.0", "preco": 700.0, "qtd_sistema": 0, "idx": 29}, {"id": "22194708927.0", "produto": "Aquecedor De Água Sem Tanque DSK-65 4500w Elétrico Montado Na Parede 110V", "variacao": "", "sku": "", "ean": "7899646139983.0", "preco": 560.0, "qtd_sistema": 0, "idx": 30}, {"id": "58254433882.0", "produto": "As Kit De Soldador, Kit De Cables De 60 W, 220 V, Ajustable", "variacao": "", "sku": "", "ean": "0.0", "preco": 75.8, "qtd_sistema": 0, "idx": 31}, {"id": "22095070448.0", "produto": "Aspirador De Carro Portátil Sem Fio Aspirador De Mão.", "variacao": "", "sku": "", "ean": "0.0", "preco": 85.99, "qtd_sistema": 1, "idx": 32}, {"id": "23999449070.0", "produto": "Ataque Tubarão Ajazz Hot Mechanical Keyboard, 75% Tkl Rgb.", "variacao": "", "sku": "", "ean": "0.0", "preco": 420.0, "qtd_sistema": 0, "idx": 33}, {"id": "58254098049.0", "produto": "Azdome Pg17 Retrovisor Inteligente Cam Dupla 1080p Lacrado", "variacao": "", "sku": "", "ean": "0.0", "preco": 729.99, "qtd_sistema": 0, "idx": 34}, {"id": "58255063588.0", "produto": "BACKUP PLUS SILM 8TB WINDOWS", "variacao": "", "sku": "", "ean": "0.0", "preco": 500.0, "qtd_sistema": 1, "idx": 35}, {"id": "58211916200.0", "produto": "BASTÃO DE SELFIEE VIDEO ULANZI MA09 COM CONTROLE BLUETOOTH.", "variacao": "", "sku": "", "ean": "0.0", "preco": 169.0, "qtd_sistema": 0, "idx": 36}, {"id": "23799489969.0", "produto": "BIQU EXTRUSORA H2 V2S ADEQUADA PARA MAIORIA DAS IMPRESSORAS 3D FDM.", "variacao": "", "sku": "", "ean": "0.0", "preco": 450.0, "qtd_sistema": 0, "idx": 37}, {"id": "58213033152.0", "produto": "BRASTOY  BEBÊ REBORN BONECO  SILICONE 50 CM.", "variacao": "", "sku": "", "ean": "0.0", "preco": 200.0, "qtd_sistema": 1, "idx": 38}, {"id": "58203735130.0", "produto": "Balança Digital De Precisão Café Barista Cozinha Usb Bateria Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 105.0, "qtd_sistema": 0, "idx": 39}, {"id": "58205066197.0", "produto": "Balança Timemore Black Mirror Basic 2 Profissional Usb-c Preto 0.5 G", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 0, "idx": 40}, {"id": "58257082462.0", "produto": "Base Carregador Joystick Machenike G5 Pro Rgb Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 0, "idx": 41}, {"id": "58206739500.0", "produto": "Base de carregamento Flydigi para Apex 4/vader 3 Pro Color Black", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 0, "idx": 42}, {"id": "58254479405.0", "produto": "Black & White Cherry Blossom Gaming Mouse Pad, Large Mat", "variacao": "", "sku": "", "ean": "0.0", "preco": 45.0, "qtd_sistema": 0, "idx": 43}, {"id": "58254957233.0", "produto": "BolaAzul, Raquete Beach Tennis Camewin Powersurf 3K Carbon", "variacao": "", "sku": "", "ean": "0.0", "preco": 380.0, "qtd_sistema": 0, "idx": 44}, {"id": "58204222490.0", "produto": "Boneco colecionável de xampu Ranma 1/2, estátua de anime de PVC, \n", "variacao": "", "sku": "", "ean": "0.0", "preco": 148.0, "qtd_sistema": 0, "idx": 45}, {"id": "58259022155.0", "produto": "Box Livro Magisterium de Clare Cassandra e Holly Black Editora Galera Record Capa Mole em Português 2021", "variacao": "", "sku": "", "ean": "9788501304933.0", "preco": 119.9, "qtd_sistema": 0, "idx": 46}, {"id": "58259023736.0", "produto": "Box Livros A Saga Dos Corvos de Maggie Stiefvater Acompanha Marcadores E Conto Verus Editora Português 2019", "variacao": "", "sku": "", "ean": "", "preco": 129.9, "qtd_sistema": 0, "idx": 47}, {"id": "58254397269.0", "produto": "Bíblia De Estudo Holman King James Bkj 1611 Fiel 7a. Edição Cor Marrom E Preta", "variacao": "", "sku": "", "ean": "0.0", "preco": 268.6, "qtd_sistema": 0, "idx": 48}, {"id": "58209865052.0", "produto": "Bíblia De Estudo King James PPM FULL COLOR - Capa Dura - Vintage", "variacao": "", "sku": "", "ean": "0.0", "preco": 62.0, "qtd_sistema": 0, "idx": 49}, {"id": "58261465228.0", "produto": "CAIXA DE SOM  SOUNDCORE BOOM 2 SE  BLUETOOTH PORTÁTIL COM BATERIA ORIGINAL  ATÉ 24 HORAS REPRODUÇÃO BASSUP 2.0.", "variacao": "", "sku": "", "ean": "0.0", "preco": 799.0, "qtd_sistema": 0, "idx": 50}, {"id": "58254478618.0", "produto": "CAMERA Kids na cor branca", "variacao": "", "sku": "", "ean": "0.0", "preco": 140.0, "qtd_sistema": 0, "idx": 51}, {"id": "58254115333.0", "produto": "CAPA EVA PARA TABLET, COMPATÍVEL COM SAMSUNG GALAXY TAB A9PLUS 11 POLEGADAS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 35.99, "qtd_sistema": 0, "idx": 52}, {"id": "23395017977.0", "produto": "CAPA PARA KINDLE DE 7 POLEGADAS 2024.", "variacao": "", "sku": "", "ean": "0.0", "preco": 45.0, "qtd_sistema": 1, "idx": 53}, {"id": "23699489064.0", "produto": "CARTÃO DE MEMÓRIA MICRO SDXC LEXAR HIGH-ENDURANCE 64GB/ 100MB V30 U3 C10 4K.", "variacao": "", "sku": "", "ean": "0.0", "preco": 99.9, "qtd_sistema": 0, "idx": 54}, {"id": "58262315453.0", "produto": "CELIMAX Retinal Shot Tightening Booster 15ml - Sérum Facial Reafirmante com Retinal 0.1%para Flacide", "variacao": "", "sku": "", "ean": "0.0", "preco": 22.99, "qtd_sistema": 11, "idx": 55}, {"id": "22099543647.0", "produto": "CHALEIRA ELÉTRICA COM BICO DE GANSO, COM VISOR LCD, ELECTRIC KETTLE/ COR CREME 0,900ML 110V..", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 56}, {"id": "58212494234.0", "produto": "CICLOCOMPUTADOR COM GPS IGPSPORT BSC100s.", "variacao": "", "sku": "", "ean": "0.0", "preco": 299.0, "qtd_sistema": 0, "idx": 57}, {"id": "58212949166.0", "produto": "CONJUNTO DE CHÁ PIRES ROSA YOLIFE MARFIM 6 PEÇAS/ 250ML XÍCARA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 399.0, "qtd_sistema": 1, "idx": 58}, {"id": "58262953318.0", "produto": "CONTROLE JOYSTICK GAMESIR G8 GALILEO TYPE-C COR CINZA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 220.0, "qtd_sistema": 1, "idx": 59}, {"id": "58211073217.0", "produto": "COOLER AR12 PRO PWM 1PACK AIGO.", "variacao": "BRANCA", "sku": "COOLER AR12 PRO PWM 1PACK AIGO BRANCO", "ean": "0.0", "preco": 52.0, "qtd_sistema": 4, "idx": 60}, {"id": "58211073217.0", "produto": "COOLER AR12 PRO PWM 1PACK AIGO.", "variacao": "PRETO", "sku": "COOLER AR12 PRO PWM 1PACK AIGO PRETO", "ean": "0.0", "preco": 49.99, "qtd_sistema": 5, "idx": 61}, {"id": "58261111578.0", "produto": "COOLER FAN AIGO AM12 PRO ARGB/ AR12 ARG FAN COM LED.", "variacao": "AR12 1PACK ARGB FAN BRANCO", "sku": "AR12 1PACK ARGB FAN BRANCO", "ean": "0.0", "preco": 26.6, "qtd_sistema": 0, "idx": 62}, {"id": "58261111578.0", "produto": "COOLER FAN AIGO AM12 PRO ARGB/ AR12 ARG FAN COM LED.", "variacao": "AR12 1PACK ARGB PRETO", "sku": "AR12 1PACK ARGB PRETO", "ean": "0.0", "preco": 26.6, "qtd_sistema": 0, "idx": 63}, {"id": "58261111578.0", "produto": "COOLER FAN AIGO AM12 PRO ARGB/ AR12 ARG FAN COM LED.", "variacao": "COLER FAN AIGO AM12 PRO BRANCO", "sku": "COLER FAN AIGO AM12 PRO BRANCO", "ean": "0.0", "preco": 25.6, "qtd_sistema": 1, "idx": 64}, {"id": "58261111578.0", "produto": "COOLER FAN AIGO AM12 PRO ARGB/ AR12 ARG FAN COM LED.", "variacao": "COLER FAN AIGO AM12 PRO PRETO", "sku": "COLER FAN AIGO AM12 PRO PRETO", "ean": "0.0", "preco": 25.6, "qtd_sistema": 5, "idx": 65}, {"id": "58211135006.0", "produto": "COOLER RGB AIGO ICE 200 PRO PARA PROCESSADOR INTEL.", "variacao": "", "sku": "", "ean": "0.0", "preco": 69.99, "qtd_sistema": 1, "idx": 66}, {"id": "58209358172.0", "produto": "Cabeça de corte descartável sem corte 22g 23g 25g 50mm 70mm para cuidados com a pele 06P5.", "variacao": "", "sku": "", "ean": "0.0", "preco": 110.0, "qtd_sistema": 0, "idx": 67}, {"id": "58253850401.0", "produto": "Cabine Led Tratamento Facial Cromoterapia 7 Cores Com Nano Spray", "variacao": "", "sku": "", "ean": "0.0", "preco": 433.5, "qtd_sistema": 0, "idx": 68}, {"id": "58254800377.0", "produto": "Cabo de extensão de fonte de alimentação argb psu, fluxo rgb atx 24 pinos pcie gpu 8 pinos 6 + 2 pinos cabo placa-mãe,", "variacao": "", "sku": "", "ean": "0.0", "preco": 50.0, "qtd_sistema": 0, "idx": 69}, {"id": "58259821611.0", "produto": "Caixa de Som Portátil Tribit StormBox Mini BT 5.4 .", "variacao": "", "sku": "", "ean": "0.0", "preco": 138.0, "qtd_sistema": 0, "idx": 70}, {"id": "58261059764.0", "produto": "Calibrador De pneu para carros, bicicletas baseus Rápido e prático.", "variacao": "", "sku": "", "ean": "0.0", "preco": 600.0, "qtd_sistema": 1, "idx": 71}, {"id": "58212181464.0", "produto": "Camera Kodak Wifi Resistente À Água Fullhd 16mp Pixpro Wpz2 Com Nf-e", "variacao": "", "sku": "", "ean": "0.0", "preco": 1300.0, "qtd_sistema": 0, "idx": 72}, {"id": "58211059174.0", "produto": "Camera de Segurança Placa Solar Wifi Dual Lente 360 Graus HD Sensor Movimento Visao Noturna.", "variacao": "", "sku": "", "ean": "0.0", "preco": 620.0, "qtd_sistema": 0, "idx": 73}, {"id": "58204230091.0", "produto": "Camera panox v3 360 câmera Gravação de vídeo.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1779.0, "qtd_sistema": 0, "idx": 74}, {"id": "58259430614.0", "produto": "Caneta De Acupuntura Eletrônica , Massagem Meridiana Energética , Encontrar Pontos Automaticamente.", "variacao": "", "sku": "", "ean": "0.0", "preco": 203.0, "qtd_sistema": 0, "idx": 75}, {"id": "58262948059.0", "produto": "Capa  para Cameras De merguho Invisível Insta360 X3 (Nova) - À Prova D'água.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 1, "idx": 76}, {"id": "58204973677.0", "produto": "Capacete Eletrônico Iron Man Controle Voz e Remoto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1000.0, "qtd_sistema": 0, "idx": 77}, {"id": "22299515010.0", "produto": "Capacete Robusto Preto Fosco com Design Agressivo.", "variacao": "", "sku": "", "ean": "0.0", "preco": 990.0, "qtd_sistema": 1, "idx": 78}, {"id": "58254919316.0", "produto": "Capacete Rockstar Preto Fosco Motocross Trilha Tam M", "variacao": "", "sku": "", "ean": "0.0", "preco": 280.0, "qtd_sistema": 0, "idx": 79}, {"id": "58262616868.0", "produto": "Carinho de controle remoto SMALL DRIFT FOLOWING LIGHT  NA COR VERMELHA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 59.99, "qtd_sistema": 0, "idx": 80}, {"id": "22294878007.0", "produto": "Carregado Xiaomi 33w Tipo C Turbo Cor Branco", "variacao": "", "sku": "", "ean": "0.0", "preco": 74.0, "qtd_sistema": 0, "idx": 81}, {"id": "58254650173.0", "produto": "Carregador De Bateria, YAKEE DC18RC De Íon De Lítio Dc18ra 18v Para Makita.", "variacao": "", "sku": "", "ean": "0.0", "preco": 200.0, "qtd_sistema": 0, "idx": 82}, {"id": "58262234617.0", "produto": "Carregador De carro portátil FEYREE DE 7KM PARA VEICULOS ELETRICOS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1100.0, "qtd_sistema": 0, "idx": 83}, {"id": "58262395784.0", "produto": "Carretilha de Pesca Seasir DCAST DC para Arremesso Controle Digital Long Cast 7.3:1 7+1BB Drag", "variacao": "", "sku": "", "ean": "0.0", "preco": 150.0, "qtd_sistema": 0, "idx": 84}, {"id": "58253403359.0", "produto": "Carrinho De Controle Remoto 50km/h Rc Off Road 4x4 4wd Drift", "variacao": "", "sku": "", "ean": "0.0", "preco": 810.0, "qtd_sistema": 0, "idx": 85}, {"id": "58203417491.0", "produto": "Carrinho De Controle Remoto Fusca Azul-turquesa CONTROLE REMOTO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 194.0, "qtd_sistema": 0, "idx": 86}, {"id": "22995057270.0", "produto": "Carrinho de controle remoto recarregável BMW M4 Drift RC com neon corrida 4WD tração quatro rodas.", "variacao": "", "sku": "", "ean": "", "preco": 84.99, "qtd_sistema": 0, "idx": 87}, {"id": "58212397395.0", "produto": "Carro Controle Remoto Drift Racing E80 Black 1:24 com Luzes e 2 Velocidades", "variacao": "", "sku": "", "ean": "", "preco": 55.99, "qtd_sistema": 0, "idx": 88}, {"id": "58253398985.0", "produto": "Carro Controle Remoto GANTRY Automodelo 4x4 50km/h", "variacao": "", "sku": "", "ean": "0.0", "preco": 345.0, "qtd_sistema": 0, "idx": 89}, {"id": "58260062806.0", "produto": "Carro De Controle 1:22 Para Crianças Com Potência", "variacao": "", "sku": "", "ean": "0.0", "preco": 218.0, "qtd_sistema": 1, "idx": 90}, {"id": "58254967165.0", "produto": "Carro de Controle Remoto Kfplan Escala 1:16 - Caminhão de Brinquedo para Drift\"", "variacao": "", "sku": "", "ean": "", "preco": 350.0, "qtd_sistema": 0, "idx": 91}, {"id": "58258109467.0", "produto": "Cartão De Memória 64gb 100mbs Canvas Select Plus Kingston.", "variacao": "", "sku": "", "ean": "0.0", "preco": 45.0, "qtd_sistema": 0, "idx": 92}, {"id": "58253277331.0", "produto": "Cartão De Memória Micro SD KODAK 64GB Para Câmera De Carro, PC", "variacao": "", "sku": "", "ean": "0.0", "preco": 81.0, "qtd_sistema": 0, "idx": 93}, {"id": "58253324669.0", "produto": "Cartão De Memória Micro Sdxc Sandisk Extreme 64gb 170mb's", "variacao": "", "sku": "", "ean": "619659193416.0", "preco": 70.5, "qtd_sistema": 0, "idx": 94}, {"id": "58253282436.0", "produto": "Cartão De Memória Sandisk Ultra MicroSDXC UHS-I 512GB 100MBs Classe 10", "variacao": "", "sku": "", "ean": "619659196622.0", "preco": 129.0, "qtd_sistema": 0, "idx": 95}, {"id": "58203327105.0", "produto": "Cartão Memória 128gb Microsd Sandisk Micro Sd Com Adaptador", "variacao": "", "sku": "", "ean": "619659188528.0", "preco": 100.0, "qtd_sistema": 0, "idx": 96}, {"id": "58254113163.0", "produto": "Cartão Memória Microsd Samsung 512gb Micro Sd 160mbs E Adapt pro plus", "variacao": "", "sku": "", "ean": "0.0", "preco": 499.99, "qtd_sistema": 0, "idx": 97}, {"id": "58258115774.0", "produto": "Cartão Memória Sandisk 32gb Extreme Pro 100mbs Uhs-i C10", "variacao": "", "sku": "", "ean": "0.0", "preco": 40.0, "qtd_sistema": 0, "idx": 98}, {"id": "58203296361.0", "produto": "Cartão Memória Sandisk Sd Xc 64gb Extreme Pro 200 Mb/s", "variacao": "", "sku": "", "ean": "619659188719.0", "preco": 85.0, "qtd_sistema": 0, "idx": 99}, {"id": "58203347352.0", "produto": "Cartão Memória Sd Sandisk 64gb Extreme 170Mbs c10 V30 UHD", "variacao": "", "sku": "", "ean": "619659188610.0", "preco": 100.0, "qtd_sistema": 0, "idx": 100}, {"id": "22894810732.0", "produto": "Cartão Memória Sdxc 64gb Canvas Go Plus 170mbs Kingston Azul escrito kingston", "variacao": "", "sku": "", "ean": "0.0", "preco": 75.0, "qtd_sistema": 0, "idx": 101}, {"id": "58253275713.0", "produto": "Cartão Micro SD SanDisk, Nintendo Switch 64GB", "variacao": "", "sku": "", "ean": "619659205829.0", "preco": 70.0, "qtd_sistema": 0, "idx": 102}, {"id": "58203332963.0", "produto": "Cartão SDHC 32gb Sandisk Ultra 100mb/s", "variacao": "", "sku": "", "ean": "619659185275.0", "preco": 35.0, "qtd_sistema": 0, "idx": 103}, {"id": "58253286780.0", "produto": "Cartão SDXC 256Gb SanDisk Extreme 4K 180Mb/s", "variacao": "", "sku": "", "ean": "619659188948.0", "preco": 400.0, "qtd_sistema": 2, "idx": 104}, {"id": "23194785634.0", "produto": "Cartão de Memória 64gb SD/SDHC Ultra 100mbs Sandisk (Câmeras Foto Semi / Profissionais)", "variacao": "", "sku": "", "ean": "619659185282.0", "preco": 40.0, "qtd_sistema": 0, "idx": 105}, {"id": "58203341142.0", "produto": "Cartão de Memória Lexar Professional 128GB 166s7x SDXC UHS-II V60 4K 250MB/s 120MB/", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.0, "qtd_sistema": 0, "idx": 106}, {"id": "58253322243.0", "produto": "Cartão de Memória Micro SD 128GB Kingston Canvas Select Plus Classe 10 100Mb/s c/ Adaptador Original", "variacao": "", "sku": "", "ean": "0.0", "preco": 100.0, "qtd_sistema": 0, "idx": 107}, {"id": "58253314808.0", "produto": "Cartão de Memória MicroSDXC Sandisk Extreme 256GB", "variacao": "", "sku": "", "ean": "619659188511.0", "preco": 150.0, "qtd_sistema": 0, "idx": 108}, {"id": "58203236063.0", "produto": "Cartão de memória Lexar MicroSD 128gb LSDMI128BB-633A High-Performance 633x Adaptador SD", "variacao": "", "sku": "", "ean": "0.0", "preco": 77.99, "qtd_sistema": 0, "idx": 109}, {"id": "58253318022.0", "produto": "Cartão de memória SanDisk 128GB micro SD SDXC 140MB/s Ultra", "variacao": "", "sku": "", "ean": "619659200480.0", "preco": 110.0, "qtd_sistema": 0, "idx": 110}, {"id": "58210269852.0", "produto": "Casa de montar café Diy Miniatura house.", "variacao": "", "sku": "", "ean": "0.0", "preco": 130.0, "qtd_sistema": 0, "idx": 111}, {"id": "58260593751.0", "produto": "Case Para HD  e SSD  Tomate rápido e prático  Proteção garantida.", "variacao": "", "sku": "", "ean": "0.0", "preco": 60.0, "qtd_sistema": 1, "idx": 112}, {"id": "58212580277.0", "produto": "Caçamba para Caminhão Hulna de Brinquedo.", "variacao": "", "sku": "", "ean": "0.0", "preco": 104.99, "qtd_sistema": 1, "idx": 113}, {"id": "58201638674.0", "produto": "Central De Alarme Anti-furto 880-a, 8 Entrada Usb", "variacao": "", "sku": "", "ean": "0.0", "preco": 149.9, "qtd_sistema": 1, "idx": 114}, {"id": "58212303491.0", "produto": "Central Multimidia Universal Nova Na Caixa Carros 2008 A 2015 FIRST PTION.", "variacao": "", "sku": "", "ean": "0.0", "preco": 100.0, "qtd_sistema": 1, "idx": 115}, {"id": "23999481065.0", "produto": "Chaleira Elétrica 2L 110V - Vidro Temperado, Desligamento Automático e Base Removível.", "variacao": "", "sku": "", "ean": "0.0", "preco": 100.0, "qtd_sistema": 0, "idx": 116}, {"id": "58252616381.0", "produto": "Chave De Fenda Elétrica De Precisão Portátil 28 Em 1 Luz LED", "variacao": "", "sku": "", "ean": "0.0", "preco": 69.9, "qtd_sistema": 0, "idx": 117}, {"id": "58254112617.0", "produto": "Chaveador Switch Kvm Hdmi 2x2 Dual Monitor 8k 4xusb", "variacao": "", "sku": "", "ean": "0.0", "preco": 465.0, "qtd_sistema": 0, "idx": 118}, {"id": "58255040929.0", "produto": "Coleção 6 - Cidade Da Lua Crescente De Sarah J Maas", "variacao": "", "sku": "", "ean": "0.0", "preco": 195.99, "qtd_sistema": 0, "idx": 119}, {"id": "23594996176.0", "produto": "Coller TEUCER Neon ARMOR  360 RGB WHITE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 399.99, "qtd_sistema": 1, "idx": 120}, {"id": "58255346452.0", "produto": "Como Organizar Sua Vida Financeira", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.6, "qtd_sistema": 0, "idx": 121}, {"id": "58204740109.0", "produto": "Condensador Foco De Lente Mm-06 Pro", "variacao": "", "sku": "", "ean": "0.0", "preco": 390.0, "qtd_sistema": 1, "idx": 122}, {"id": "58206574567.0", "produto": "Confira Carrinho Controle Remoto Conquer Sg116 80km 4x4", "variacao": "", "sku": "", "ean": "0.0", "preco": 975.0, "qtd_sistema": 0, "idx": 123}, {"id": "58259425703.0", "produto": "Confira Novo Watch 10 Ultra 3 Smartwatch 7 Pulseiras De Relógio 2.06hd Amoled Tela Circular.", "variacao": "", "sku": "", "ean": "0.0", "preco": 169.99, "qtd_sistema": 0, "idx": 124}, {"id": "58255117229.0", "produto": "Controladora Aigo Apc1 + Hub Argb 3 Pin 5v + Pwm 4 Pin 12v", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 0, "idx": 125}, {"id": "58205448925.0", "produto": "Controle 8bitdo Ultimate 2.4ghz Hall Effect Com Dock.", "variacao": "", "sku": "", "ean": "0.0", "preco": 250.0, "qtd_sistema": 0, "idx": 126}, {"id": "58212828013.0", "produto": "Controle EasySMX S15 RGB Para Switch e  Switch OLED NFC Gatilhos Mecânicos Hall Effect NFC", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 0, "idx": 127}, {"id": "58262625442.0", "produto": "Controle GameSir Cyclone 2 Bundle Edition com Dock de Carregamento.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 1, "idx": 128}, {"id": "58205447929.0", "produto": "Controle Gamer 8bitdo Ultimate 2c, Bluetooth/wireless Lilás.", "variacao": "", "sku": "", "ean": "0.0", "preco": 191.0, "qtd_sistema": 0, "idx": 129}, {"id": "23099347762.0", "produto": "Controle Gamesir Kaleid K1 Com Fio Para Pc Xbox S X One Hall Preto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 130}, {"id": "58262948617.0", "produto": "Controle Gamesir X3 Pro type- C COM Cooler.", "variacao": "", "sku": "", "ean": "0.0", "preco": 180.0, "qtd_sistema": 1, "idx": 131}, {"id": "58255441727.0", "produto": "Controle Machenike G1 - Completo", "variacao": "", "sku": "", "ean": "0.0", "preco": 182.0, "qtd_sistema": 0, "idx": 132}, {"id": "58253156247.0", "produto": "Controle Machenike G5 Pro V2 Com Dock.", "variacao": "", "sku": "", "ean": "0.0", "preco": 287.9, "qtd_sistema": 0, "idx": 133}, {"id": "58260981015.0", "produto": "Controle Portao Automatico Universal Portao De Garagem", "variacao": "AMARELO", "sku": "Controle Portao Automatico Universal Portao De Garagem AMARELO", "ean": "0.0", "preco": 9.99, "qtd_sistema": 0, "idx": 134}, {"id": "58260981015.0", "produto": "Controle Portao Automatico Universal Portao De Garagem", "variacao": "AZUL", "sku": "Controle Portao Automatico Universal Portao De Garagem AZUL", "ean": "0.0", "preco": 9.99, "qtd_sistema": 0, "idx": 135}, {"id": "58260981015.0", "produto": "Controle Portao Automatico Universal Portao De Garagem", "variacao": "BRANCO", "sku": "Controle Portao Automatico Universal Portao De Garagem BRANCO", "ean": "0.0", "preco": 9.99, "qtd_sistema": 0, "idx": 136}, {"id": "58260981015.0", "produto": "Controle Portao Automatico Universal Portao De Garagem", "variacao": "VERDE", "sku": "Controle Portao Automatico Universal Portao De Garagem VERDE", "ean": "0.0", "preco": 9.99, "qtd_sistema": 0, "idx": 137}, {"id": "58260981015.0", "produto": "Controle Portao Automatico Universal Portao De Garagem", "variacao": "VERMELHO", "sku": "Controle Portao Automatico Universal Portao De Garagem VERMELHO", "ean": "0.0", "preco": 9.99, "qtd_sistema": 0, "idx": 138}, {"id": "58205458381.0", "produto": "Controle Qrd Spark N5 Para Ps4, Ps3, Pc, Ios E Android Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 380.0, "qtd_sistema": 0, "idx": 139}, {"id": "58206577096.0", "produto": "Controle Remoto Sony RM-AAU116 Original.", "variacao": "", "sku": "", "ean": "0.0", "preco": 30.5, "qtd_sistema": 0, "idx": 140}, {"id": "58210206029.0", "produto": "Controle remoto de projetor compatível com Drone DJI T40 WRJPJ", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 1, "idx": 141}, {"id": "58212606984.0", "produto": "Controle sem fio Profissional para Celular DATA FROG X3 NA COR BRANCO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 85.99, "qtd_sistema": 0, "idx": 142}, {"id": "58256719722.0", "produto": "Cooler Aigo Ice200 115x/am3/4/5 Rgb 2 Heatpipes 92mm Tdp 95w  PRO {SEM RGB}", "variacao": "", "sku": "", "ean": "0.0", "preco": 140.0, "qtd_sistema": 0, "idx": 143}, {"id": "58254059502.0", "produto": "Cooler Cpu Thermalright Peerless Assassin 120 Se - Intel Amd Black", "variacao": "", "sku": "", "ean": "0.0", "preco": 415.0, "qtd_sistema": 0, "idx": 144}, {"id": "58204932668.0", "produto": "Cooler De Ar Para CPU ARGB 120MM Com 4 Tubos De Calor Para Intel LGA 1200 1366 1700 2011 1150 1151 - adegrees", "variacao": "", "sku": "", "ean": "0.0", "preco": 149.9, "qtd_sistema": 0, "idx": 145}, {"id": "58205021756.0", "produto": "Cooler Low Profile Wovibo Com 6 Heatpipes Rgb Lp-6a", "variacao": "", "sku": "", "ean": "0.0", "preco": 132.9, "qtd_sistema": 0, "idx": 146}, {"id": "22999384926.0", "produto": "Cooler Para CPU Intel AMD 1400 Com 4 Heat Pipes, Ventoinha ARGB Silenciosa 4PIN PWM 1200 - METALFISH", "variacao": "", "sku": "", "ean": "0.0", "preco": 129.99, "qtd_sistema": 0, "idx": 147}, {"id": "23699319910.0", "produto": "Crescer com Alegria e fé 5 Edição Português | 2ª Edição", "variacao": "", "sku": "", "ean": "0.0", "preco": 149.9, "qtd_sistema": 1, "idx": 148}, {"id": "58254913064.0", "produto": "Cubot Kingkong Es 4g Resistente 128gb 16gb Ram (6gb+10gb) Preto/laranja", "variacao": "", "sku": "", "ean": "0.0", "preco": 1799.9, "qtd_sistema": 0, "idx": 149}, {"id": "58213027895.0", "produto": "CÂMERA DE SEGURANÇA  SOLAR PTZ 4G/ WI-FI LENTE DUPLA 8MP/ VISÃO NOTURNA A PROVA ÁGUA BATÉRIA DE SEGURANÇA,CCT.", "variacao": "", "sku": "", "ean": "0.0", "preco": 267.0, "qtd_sistema": 1, "idx": 150}, {"id": "22799498106.0", "produto": "CÂMERA TAPO DE SEGURANÇA WI-FI INTERNA 360° 1080p FULL HD.", "variacao": "", "sku": "", "ean": "0.0", "preco": 221.0, "qtd_sistema": 0, "idx": 151}, {"id": "58261141394.0", "produto": "CÂMERA VEICULAR 4K DE QUATRO CANAIS, WI-FI, ADAS, E BSD, ESPELHO RETROVISOR DE 12POLEGADAS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 799.0, "qtd_sistema": 0, "idx": 152}, {"id": "58261121111.0", "produto": "Câmera 4mp  wi-fi 180 Degree wide angle 10x.", "variacao": "", "sku": "", "ean": "0.0", "preco": 160.0, "qtd_sistema": 1, "idx": 153}, {"id": "22399355000.0", "produto": "Câmera Ação Sj4000 4k Dual Screen Wi-fi Sjcam", "variacao": "", "sku": "", "ean": "0.0", "preco": 476.0, "qtd_sistema": 0, "idx": 154}, {"id": "22899340831.0", "produto": "Câmera Bullet Reolink Rlc811a Profissional Zoom Óptico 4k Branco", "variacao": "", "sku": "", "ean": "0.0", "preco": 1494.0, "qtd_sistema": 1, "idx": 155}, {"id": "58260057498.0", "produto": "Câmera De Inspeção Endoscópio Celular E Pc Usb Multifuncional.", "variacao": "", "sku": "", "ean": "0.0", "preco": 550.0, "qtd_sistema": 1, "idx": 156}, {"id": "58254194623.0", "produto": "Câmera De Segurança Kerui Smart K259 Ip Móvel 2mp 1080p Branco", "variacao": "", "sku": "", "ean": "0.0", "preco": 111.99, "qtd_sistema": 1, "idx": 157}, {"id": "22099365067.0", "produto": "Câmera Digital Preta Preta 4k Hd 75mp Uhd 18xaf Autofocus 3", "variacao": "", "sku": "", "ean": "0.0", "preco": 475.0, "qtd_sistema": 1, "idx": 158}, {"id": "58203916325.0", "produto": "Câmera IP Heiyoucam WiFi HD - Segurança Residencial Inteligente via Aplicativo", "variacao": "", "sku": "", "ean": "0.0", "preco": 170.0, "qtd_sistema": 1, "idx": 159}, {"id": "58253899902.0", "produto": "Câmera Ip Externa Fhd De 12mp 3 Lentes 3 Telas Wifi Ipc360Câmera Ip Externa Fhd De 12mp 3 Lentes 3 Telas Wifi Ipc360 Câm", "variacao": "", "sku": "", "ean": "0.0", "preco": 214.0, "qtd_sistema": 0, "idx": 160}, {"id": "58253905210.0", "produto": "Câmera Veicular 1080p HD Tripla Visão Noturna 170° com Gravação em Loop e Instalação Fácil kicool 15514", "variacao": "", "sku": "", "ean": "0.0", "preco": 84.0, "qtd_sistema": 0, "idx": 161}, {"id": "23699307318.0", "produto": "Câmera Vigilância 8mp 4k, UDECER, Monitoramento Wi-fi com IA", "variacao": "", "sku": "", "ean": "0.0", "preco": 196.0, "qtd_sistema": 0, "idx": 162}, {"id": "58205128565.0", "produto": "Câmera Vimtag Security Camera Outdoor 2.5k, 2.4g/5g Smart Wi-fi.", "variacao": "", "sku": "", "ean": "0.0", "preco": 320.0, "qtd_sistema": 1, "idx": 163}, {"id": "58255395830.0", "produto": "Câmera de Segurança Externa Dual (Dupla Lente) 4+4MP, IP, Wi-Fi, PTZ, App iCSee + Cartão MicroSD 128GB, Cor Preta.", "variacao": "", "sku": "", "ean": "0.0", "preco": 200.0, "qtd_sistema": 0, "idx": 164}, {"id": "58260934653.0", "produto": "Câmera de Segurança WiFi V360 3 Lentes 360° 4K Rastreio de Movimento Áudio Bidirecional P16", "variacao": "", "sku": "", "ean": "0.0", "preco": 232.0, "qtd_sistema": 0, "idx": 165}, {"id": "58254492688.0", "produto": "Câmera de segurança WiFi externa Imou 2MP, cor branca", "variacao": "", "sku": "", "ean": "0.0", "preco": 439.0, "qtd_sistema": 0, "idx": 166}, {"id": "58255040381.0", "produto": "Câmera de vídeo, filmadora 4K, câmera digital", "variacao": "", "sku": "", "ean": "0.0", "preco": 2099.0, "qtd_sistema": 0, "idx": 167}, {"id": "23194954850.0", "produto": "DM1306D Medidor de Decibéis 3 Em 1, Medidor de Nível de Som 30-130dBA, Monitor LED de Nível de Ruído", "variacao": "", "sku": "", "ean": "0.0", "preco": 290.0, "qtd_sistema": 0, "idx": 168}, {"id": "58262590729.0", "produto": "Despertador de alerme  Alerta Wake Strike NA COR PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 99.99, "qtd_sistema": 1, "idx": 169}, {"id": "58261122465.0", "produto": "Detector De Fallas Del Actuador De Automótivel.", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 0, "idx": 170}, {"id": "58260118522.0", "produto": "Diario De Um Banana Vol. 20 Festa Insana - 2025 Vr Editoras", "variacao": "", "sku": "", "ean": "0.0", "preco": 55.0, "qtd_sistema": 0, "idx": 171}, {"id": "22899349712.0", "produto": "Digital Clamp Meter Measures Current Current Diodes Ht208d", "variacao": "", "sku": "", "ean": "0.0", "preco": 239.9, "qtd_sistema": 0, "idx": 172}, {"id": "23899334324.0", "produto": "Disco Rígido Externo Colorido Tiri Ultra-fast M.2 Ssd -2TB AZUL-4TB PRETO-", "variacao": "4TB", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 0, "idx": 173}, {"id": "23899334324.0", "produto": "Disco Rígido Externo Colorido Tiri Ultra-fast M.2 Ssd -2TB AZUL-4TB PRETO-", "variacao": "AZUL", "sku": "", "ean": "0.0", "preco": 80.0, "qtd_sistema": 0, "idx": 174}, {"id": "58205071078.0", "produto": "Disco Rígido Externo Seagate Stea500400 500gb Preto Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 240.0, "qtd_sistema": 0, "idx": 175}, {"id": "58258112093.0", "produto": "Disco Sólido Interno Ssd Puskill 256gb Sata", "variacao": "", "sku": "", "ean": "0.0", "preco": 130.0, "qtd_sistema": 0, "idx": 176}, {"id": "58255475746.0", "produto": "Display Tela Frontal para Samsung A55 Com Aro", "variacao": "", "sku": "", "ean": "0.0", "preco": 279.9, "qtd_sistema": 0, "idx": 177}, {"id": "58213053704.0", "produto": "Dispositivo de INTERNET movido a energia solar ECONOMICO PRATICO E NOVO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 1, "idx": 178}, {"id": "58204087851.0", "produto": "Dispositivo de comunicação movido a energia solar de baixa potência novo caixa aberta", "variacao": "", "sku": "", "ean": "0.0", "preco": 349.9, "qtd_sistema": 1, "idx": 179}, {"id": "58203275693.0", "produto": "Disquete Maxprint 2hd 3.5 Cx. Com 10 Unidades", "variacao": "", "sku": "", "ean": "7897975017453.0", "preco": 48.9, "qtd_sistema": 429, "idx": 180}, {"id": "58204291063.0", "produto": "Disquetes Pengo 3.5 Mf-2hd", "variacao": "", "sku": "", "ean": "0.0", "preco": 25.0, "qtd_sistema": 380, "idx": 181}, {"id": "58253817550.0", "produto": "Doogee V30 Pro 512gb 32gb(12+20)ram 10800mah 33w Tablet Cor Preto", "variacao": "", "sku": "", "ean": "6924351691028.0", "preco": 2900.0, "qtd_sistema": 0, "idx": 182}, {"id": "58204091674.0", "produto": "Dop-107Bv Ihm Delta Novas Na Caixa Original Lacrada", "variacao": "", "sku": "", "ean": "", "preco": 1450.0, "qtd_sistema": 0, "idx": 183}, {"id": "58211351834.0", "produto": "Drone Avião RC Camuflagem Azul com Controle Remoto – Brinquedo Voador 2 em 1, Luz LED, Recarga USB.", "variacao": "", "sku": "", "ean": "0.0", "preco": 95.0, "qtd_sistema": 0, "idx": 184}, {"id": "58262415994.0", "produto": "Drone E98 Hd Com Dual Câmera 4k,model.", "variacao": "DRONE M10 SERIES", "sku": "DRONE M10 SERIES", "ean": "0.0", "preco": 49.99, "qtd_sistema": 0, "idx": 185}, {"id": "58262415994.0", "produto": "Drone E98 Hd Com Dual Câmera 4k,model.", "variacao": "DRONE MINI E98", "sku": "DRONE MINI E98\n", "ean": "0.0", "preco": 49.99, "qtd_sistema": 0, "idx": 186}, {"id": "58254959127.0", "produto": "Drone Profissional  L600 Pro Gps 5g Câmera 4k Preto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 749.0, "qtd_sistema": 0, "idx": 187}, {"id": "58254336454.0", "produto": "EPOMAKER X AULA F75 Max", "variacao": "", "sku": "", "ean": "0.0", "preco": 786.9, "qtd_sistema": 0, "idx": 188}, {"id": "58204417379.0", "produto": "EPOMAKER x AULA F75 (White Blue)", "variacao": "", "sku": "", "ean": "6948391290317.0", "preco": 375.0, "qtd_sistema": 0, "idx": 189}, {"id": "58211913540.0", "produto": "EQUIPAMENTO DE PROTEÇÃO, 6 PEÇAS, PARA CRIANÇA- PATINS, SKATE, COTOVELEIRAS, JOELHEIRAS E PROTETOR PULSO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 99.0, "qtd_sistema": 2, "idx": 190}, {"id": "58255308471.0", "produto": "Easysmx M10 Joystick Gamer Tipo C Para Celular Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 245.0, "qtd_sistema": 0, "idx": 191}, {"id": "58205353709.0", "produto": "Em Defesa Das Liberdades Laicas - Roberto Arriada Lorea", "variacao": "", "sku": "", "ean": "0.0", "preco": 39.99, "qtd_sistema": 1, "idx": 192}, {"id": "58254209442.0", "produto": "Em estoque original banpresto relaxar tempo ranma 1/2 quente saotome shampoo tendou akane anime", "variacao": "", "sku": "", "ean": "", "preco": 166.0, "qtd_sistema": 0, "idx": 193}, {"id": "23599290614.0", "produto": "Espelho Retrovisor Do Carro Dvr Com Wifi Full Hd Dash Cam", "variacao": "", "sku": "", "ean": "0.0", "preco": 239.0, "qtd_sistema": 0, "idx": 194}, {"id": "22794844821.0", "produto": "Este é um sistema de segurança completo e inteligente, com conectividade híbrida (4G, WiFi e GSM) e tela LCD de 2,4 pole", "variacao": "", "sku": "", "ean": "0.0", "preco": 400.0, "qtd_sistema": 0, "idx": 195}, {"id": "58254114394.0", "produto": "Estilo Retrô/Clássico: Capacete de Couro Vintage Heritage", "variacao": "", "sku": "", "ean": "", "preco": 700.0, "qtd_sistema": 0, "idx": 196}, {"id": "58210339628.0", "produto": "Exame De Pele Portátil Woods Lamp Analisador Detecção Cuidados Com A Pele.", "variacao": "", "sku": "", "ean": "0.0", "preco": 198.0, "qtd_sistema": 0, "idx": 197}, {"id": "58204542887.0", "produto": "Exaustor Ventilador Axial Cultivo Grow Estufa 320m3/h 220v", "variacao": "", "sku": "", "ean": "6974152360128.0", "preco": 190.0, "qtd_sistema": 0, "idx": 198}, {"id": "58262847413.0", "produto": "Extensor De  Wi-fi Dual Band 5g 2.4g 1200mbps 6 Antena.", "variacao": "", "sku": "", "ean": "0.0", "preco": 102.99, "qtd_sistema": 1, "idx": 199}, {"id": "58204653260.0", "produto": "FIFINE Fone de ouvido jogos para PC - fones de ouvido USB com fio e microfone para computador com som surround.", "variacao": "", "sku": "", "ean": "0.0", "preco": 270.0, "qtd_sistema": 0, "idx": 200}, {"id": "58261869849.0", "produto": "FONE BLUETOOTH 5.3 SEM FIO TOOCKI TWS ORIGINAL 35 HS BATÉRIA, DISPLEY LED, MICROFONE. COR PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 57.99, "qtd_sistema": 4, "idx": 201}, {"id": "58261766021.0", "produto": "FONE DE OUVIDO PHILIPS BLUETOOTH 26 HORAS BATÉRIA TAT1139 BK . LACRADO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 0, "idx": 202}, {"id": "22399540085.0", "produto": "FONE- MCHOSE V9 PRO HEADSET FONE TRI-MODE WIRELESS SEM FIO/BRANCO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 349.99, "qtd_sistema": 0, "idx": 203}, {"id": "23499301288.0", "produto": "Fantasy Realms Jogo De Cartas Galapagos Fnr001", "variacao": "", "sku": "", "ean": "0.0", "preco": 70.9, "qtd_sistema": 0, "idx": 204}, {"id": "22399321120.0", "produto": "Fausto (Capa Dura), de Johann Wolfgang von Goethe. Editora Autêntica, capa dura em português", "variacao": "", "sku": "", "ean": "0.0", "preco": 87.0, "qtd_sistema": 0, "idx": 205}, {"id": "58204124014.0", "produto": "Fechadura Digital Inteligente DL 3500 ESQ– Abertura Esquerda – Biometria, Senha e Cartão", "variacao": "", "sku": "", "ean": "7898994132554.0", "preco": 1200.0, "qtd_sistema": 72, "idx": 206}, {"id": "58260478990.0", "produto": "Fechadura inteligente sem fio com entrada por impressão digital e controle de acesso.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 1, "idx": 207}, {"id": "58254200603.0", "produto": "Fechaduras Jiasenbao: Luxo e Alta Durabilidade.", "variacao": "", "sku": "", "ean": "0.0", "preco": 180.0, "qtd_sistema": 0, "idx": 208}, {"id": "58255115215.0", "produto": "Ferro Solda Pisos Vinílicos Lonas Plásticos Parachoques.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1295.0, "qtd_sistema": 1, "idx": 209}, {"id": "58204219054.0", "produto": "Figura De PVC Ranma 1/2 Tendou  Relax Time.", "variacao": "", "sku": "", "ean": "0.0", "preco": 119.0, "qtd_sistema": 0, "idx": 210}, {"id": "58211628432.0", "produto": "Filamento Voolt3D PLA Premium | O Melhor para Suas Impressões 3D.", "variacao": "BRANCA", "sku": "Filamento Voolt3D PLA Premium | O Melhor para Suas Impressões 3D. COR BRANCA", "ean": "0.0", "preco": 79.99, "qtd_sistema": 0, "idx": 211}, {"id": "58211628432.0", "produto": "Filamento Voolt3D PLA Premium | O Melhor para Suas Impressões 3D.", "variacao": "LARANJA", "sku": "Filamento Voolt3D PLA Premium | O Melhor para Suas Impressões 3D. COR LARANJA", "ean": "0.0", "preco": 79.99, "qtd_sistema": 0, "idx": 212}, {"id": "58203685907.0", "produto": "Filtro ND variável K&F Concept de 72 ND2, ND400, filtro de densidade.", "variacao": "", "sku": "", "ean": "0.0", "preco": 290.0, "qtd_sistema": 1, "idx": 213}, {"id": "58261631135.0", "produto": "Flash Yongnuo YN565EX III para Câmeras Canon - Profissional", "variacao": "", "sku": "", "ean": "0.0", "preco": 949.99, "qtd_sistema": 1, "idx": 214}, {"id": "58261647457.0", "produto": "Fone Soundcore Liberty 5 - Cancelamento de Ruído, Som Dolby, Alta Qualidade.", "variacao": "", "sku": "", "ean": "0.0", "preco": 399.99, "qtd_sistema": 0, "idx": 215}, {"id": "58204935401.0", "produto": "Fone de Ouvido Bluetooth Eraser XP6 Tradutor Inteligente Sem Fio Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 0, "idx": 216}, {"id": "58262672242.0", "produto": "Fone de Ouvido Gamer Branco L80 SMAILWOLF Alta Qualidade.", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.99, "qtd_sistema": 1, "idx": 217}, {"id": "23099305717.0", "produto": "Fonte Iwongou Psu 450w 220v Para Computador", "variacao": "", "sku": "", "ean": "0.0", "preco": 129.99, "qtd_sistema": 0, "idx": 218}, {"id": "58206657299.0", "produto": "Food Vacuo  Sealer Machine 80kpa Suquicao 6 Modos", "variacao": "", "sku": "", "ean": "0.0", "preco": 220.0, "qtd_sistema": 0, "idx": 219}, {"id": "58259525329.0", "produto": "Fosi Audio TB10D Amplificador de potência TPA3255 dD digital.", "variacao": "", "sku": "", "ean": "0.0", "preco": 400.0, "qtd_sistema": 0, "idx": 220}, {"id": "22294863724.0", "produto": "Fresa Puxador Cava 40mm Haste12mm Br288", "variacao": "", "sku": "", "ean": "0.0", "preco": 45.0, "qtd_sistema": 0, "idx": 221}, {"id": "22599324325.0", "produto": "Fujifilm Kit X-H2 + lente XF 16-80mm sem espelho cor preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 19000.0, "qtd_sistema": 0, "idx": 222}, {"id": "58210218374.0", "produto": "Funda magnética  Nilkil Para Samsung  Galaxy  z  Fold   7  con bolígrafo", "variacao": "", "sku": "", "ean": "0.0", "preco": 100.0, "qtd_sistema": 0, "idx": 223}, {"id": "58206573530.0", "produto": "Furadeira E Parafusadeira Lyuwo  21V – [SEM BATERIA].", "variacao": "", "sku": "", "ean": "0.0", "preco": 110.0, "qtd_sistema": 0, "idx": 224}, {"id": "58254987012.0", "produto": "GIGABYTE Z390 AORUS PRO Wi-Fi (Intel LGA1151/Z390/ATX/2xM.2 Thermal Guard/Onboard AC Wi-Fi/RGB Fusion/Placa-mãe para jog", "variacao": "", "sku": "", "ean": "0.0", "preco": 3200.0, "qtd_sistema": 0, "idx": 225}, {"id": "58262346191.0", "produto": "Game Console Classic Retro Gaming Console.", "variacao": "", "sku": "", "ean": "0.0", "preco": 220.0, "qtd_sistema": 0, "idx": 226}, {"id": "58260660174.0", "produto": "Gamesir Controle Sem Fio Triplo Para Game Stick, Pc, Android.", "variacao": "BRANCO", "sku": "CONTROLE BRACO", "ean": "0.0", "preco": 175.0, "qtd_sistema": 0, "idx": 227}, {"id": "58260660174.0", "produto": "Gamesir Controle Sem Fio Triplo Para Game Stick, Pc, Android.", "variacao": "PRETO", "sku": "CONTROLE PRETO", "ean": "0.0", "preco": 175.0, "qtd_sistema": 0, "idx": 228}, {"id": "58205354386.0", "produto": "Gastronomia No Brasil E No Mundo de Dolores Freixa e Guta Chaves", "variacao": "", "sku": "", "ean": "0.0", "preco": 69.0, "qtd_sistema": 0, "idx": 229}, {"id": "58262696164.0", "produto": "Gerador de Energia Regulador Automático de Tensão AVR SX440 – Código E000-24403", "variacao": "", "sku": "", "ean": "0.0", "preco": 102.99, "qtd_sistema": 10, "idx": 230}, {"id": "58262238163.0", "produto": "Gps Multimidia Moto  Funciona No Usb Da Moto Carplay Touch.", "variacao": "", "sku": "", "ean": "0.0", "preco": 380.0, "qtd_sistema": 0, "idx": 231}, {"id": "22399518448.0", "produto": "Gravadora AlgoLaser Pixi 5W/10W Laser Corte Preciso 100x100mm + Suporte e Treinamento.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1100.0, "qtd_sistema": 0, "idx": 232}, {"id": "58262827364.0", "produto": "Grip Controller Joy-Con Nintendo Switch Colorido Suporte Adaptador Conforto Jogo Acessório Gamer.", "variacao": "", "sku": "", "ean": "0.0", "preco": 29.99, "qtd_sistema": 1, "idx": 233}, {"id": "22794959226.0", "produto": "HD portátil seagate Expansion     64gb.", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 1, "idx": 234}, {"id": "58254923551.0", "produto": "HDMI Waveshare 4inch LCD Resistive Touch Screen 800x480.", "variacao": "", "sku": "", "ean": "0.0", "preco": 609.99, "qtd_sistema": 2, "idx": 235}, {"id": "58256632070.0", "produto": "HDs SanDisk Ssd Externo Portátil 1tb Interface USB 3.1 Gen 2 Sandisk Extreme SDSSDE61-1T00-G25", "variacao": "", "sku": "", "ean": "0.0", "preco": 1455.0, "qtd_sistema": 0, "idx": 236}, {"id": "58210665153.0", "produto": "HIFIMAN HE400SE Fones de ouvido com fio magnético planar planar versão de ímãs invisíveis over-ear.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1100.0, "qtd_sistema": 0, "idx": 237}, {"id": "58260695072.0", "produto": "HUB USB 2.0 USB 3.0 4Port Painel Frontal USB3.0 Hub Splitter Adaptador Combo Suporte Interno.", "variacao": "", "sku": "", "ean": "0.0", "preco": 50.0, "qtd_sistema": 0, "idx": 238}, {"id": "58204418864.0", "produto": "HXSJ-V200 Teclado com fio Mini Gaming, K68 RGB Streamer, membrana sem gestos de 19 teclas, sensação mecânica para jogo", "variacao": "BRANCO", "sku": "", "ean": "0.0", "preco": 91.0, "qtd_sistema": 0, "idx": 239}, {"id": "58204418864.0", "produto": "HXSJ-V200 Teclado com fio Mini Gaming, K68 RGB Streamer, membrana sem gestos de 19 teclas, sensação mecânica para jogo", "variacao": "PRETO", "sku": "", "ean": "0.0", "preco": 91.0, "qtd_sistema": 0, "idx": 240}, {"id": "58204934244.0", "produto": "Haomuren profissional usb streaming podcast pc microfone estúdio cardióide condensador microfone", "variacao": "", "sku": "", "ean": "0.0", "preco": 149.9, "qtd_sistema": 0, "idx": 241}, {"id": "58262949818.0", "produto": "Headphone Bluetooth Ugreen Max5c Anc 43db Bateria 75h Preto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 139.99, "qtd_sistema": 0, "idx": 242}, {"id": "58259825776.0", "produto": "Headset Gamer Sem fio NuBwo G06 over ero branco.", "variacao": "", "sku": "", "ean": "0.0", "preco": 330.0, "qtd_sistema": 0, "idx": 243}, {"id": "58205354627.0", "produto": "História Das Heresias E Suas Refutações - Santo Afonso Maria De Ligório", "variacao": "", "sku": "", "ean": "0.0", "preco": 119.99, "qtd_sistema": 1, "idx": 244}, {"id": "22899280859.0", "produto": "Homem De Ferro Mark 35 Zd Toys 17 Cm Ironman Mk 35", "variacao": "", "sku": "", "ean": "0.0", "preco": 340.0, "qtd_sistema": 0, "idx": 245}, {"id": "58256593083.0", "produto": "Hub USB C PULWTOP para Mac Mini 2024 com DP e HMDI, 3 USB A 2.0, SD/TF, Áudio/Mic, Gabinet", "variacao": "", "sku": "", "ean": "0.0", "preco": 780.0, "qtd_sistema": 0, "idx": 246}, {"id": "58256720481.0", "produto": "IWO 16 Smartwatch Relógio Inteligente T800 Ultra Watch Séri [ NA COR PRETA]", "variacao": "", "sku": "", "ean": "0.0", "preco": 40.0, "qtd_sistema": 0, "idx": 247}, {"id": "58255029777.0", "produto": "Impressora térmica portátil sem fio Bluetooth", "variacao": "", "sku": "", "ean": "0.0", "preco": 379.9, "qtd_sistema": 0, "idx": 248}, {"id": "58261619975.0", "produto": "Inalador  Portátil Mesh  Do Re Mi fisher price hc220.", "variacao": "", "sku": "", "ean": "0.0", "preco": 110.99, "qtd_sistema": 0, "idx": 249}, {"id": "58256720925.0", "produto": "Iwongou cooler x99 Cpu 2 heat pipes intel lga2011", "variacao": "", "sku": "", "ean": "0.0", "preco": 130.0, "qtd_sistema": 0, "idx": 250}, {"id": "58256671780.0", "produto": "JOGO DE PLAY 5 Until Dawn", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 0, "idx": 251}, {"id": "58203652267.0", "produto": "Jungle Leopard Interstellar V2RS 120mm ARGB Modular Wireless Splicing Infinite Mirror Ventilador Fans PRETO", "variacao": "", "sku": "", "ean": "0.0", "preco": 167.0, "qtd_sistema": 0, "idx": 252}, {"id": "58262181505.0", "produto": "KASTKING MOLINETE GIRATÓRIO BRUTUS, MOLINETES DE PESCA DE ÁGUA DOCE, MOLDURA DE GRAFITE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 160.0, "qtd_sistema": 0, "idx": 253}, {"id": "58204430708.0", "produto": "KEYCAPS COLORIDA E COELHO DESENHADA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 50.0, "qtd_sistema": 0, "idx": 254}, {"id": "58208112969.0", "produto": "KINGSPEC SSD 2.5 SATA III 1TB.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 255}, {"id": "58205037129.0", "produto": "KIT DISTRIBUICAO CORRENTE HONDA FIT", "variacao": "", "sku": "", "ean": "0.0", "preco": 290.0, "qtd_sistema": 1, "idx": 256}, {"id": "58261567947.0", "produto": "KIT LIVROS ALI HAZELWOOD NOIVA E PARCEIRA/ CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 160.0, "qtd_sistema": 0, "idx": 257}, {"id": "58256743386.0", "produto": "KIngDian DDR4 MEMORY 16GB 3200MHZ", "variacao": "", "sku": "", "ean": "0.0", "preco": 240.0, "qtd_sistema": 0, "idx": 258}, {"id": "58205473984.0", "produto": "Keycaps PBT Pudding Retroiluminadas - 108 Teclas Translúcidas", "variacao": "", "sku": "", "ean": "0.0", "preco": 65.0, "qtd_sistema": 0, "idx": 259}, {"id": "58212304687.0", "produto": "Kindle 16GB tela antirreflexo, troca de página rápida, luz ajustável e bateria longa duração C PRETO", "variacao": "", "sku": "", "ean": "0.0", "preco": 499.99, "qtd_sistema": 0, "idx": 260}, {"id": "58205153206.0", "produto": "KingSpec SSD 256GB M.2 SATA Internal Hard Drive.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 261}, {"id": "22894853994.0", "produto": "KingsSpec SSD 512GB M.2 NVME.", "variacao": "", "sku": "", "ean": "0.0", "preco": 550.0, "qtd_sistema": 0, "idx": 262}, {"id": "58210730882.0", "produto": "Kit  Microfone  Duplo Sem fio Profissional uhf", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 263}, {"id": "23194785291.0", "produto": "Kit 12 Sabonetes Ypê 85g – Karité e Flor de Amêndoas ou Carvão Detox Action 3 em 1 - OFERTA VALIDADE JUNHO/2026", "variacao": "Carvão Detox Action 3 em 1", "sku": "ACTION DE YPE 12UND", "ean": "7896098908136.0", "preco": 31.9, "qtd_sistema": 0, "idx": 264}, {"id": "23194785291.0", "produto": "Kit 12 Sabonetes Ypê 85g – Karité e Flor de Amêndoas ou Carvão Detox Action 3 em 1 - OFERTA VALIDADE JUNHO/2026", "variacao": "Karité e Flor de Amêndoas", "sku": "FLOR DE YPE 12UND", "ean": "7896098907832.0", "preco": 33.9, "qtd_sistema": 0, "idx": 265}, {"id": "58205358280.0", "produto": "Kit 3 Livros Nunca Jamais - Colleen Hoover, Tarryn Fisher", "variacao": "", "sku": "", "ean": "0.0", "preco": 63.0, "qtd_sistema": 0, "idx": 266}, {"id": "58204923059.0", "produto": "Kit 9 Bonecos Dragon Ball Z Clássico + Base + 3 Cabeças", "variacao": "", "sku": "", "ean": "0.0", "preco": 489.9, "qtd_sistema": 0, "idx": 267}, {"id": "58256249759.0", "produto": "Kit Caneta Esferográfica Trilux 032 1.0mm Faber-Castell 10 Cores ou 3 Cores", "variacao": "10 CORES", "sku": "TRILUX 10", "ean": "7754111013871.0", "preco": 23.9, "qtd_sistema": 52, "idx": 268}, {"id": "58253281615.0", "produto": "Kit Caneta Esferográfica Trilux 032 1.0mm Faber-Castell 10 Cores ou 3 Cores", "variacao": "10 CORES", "sku": "TRILUX 10", "ean": "7754111013871.0", "preco": 23.9, "qtd_sistema": 0, "idx": 269}, {"id": "58256249759.0", "produto": "Kit Caneta Esferográfica Trilux 032 1.0mm Faber-Castell 10 Cores ou 3 Cores", "variacao": "3 AZUL", "sku": "3 AZUL", "ean": "7891360564041.0", "preco": 8.9, "qtd_sistema": 0, "idx": 270}, {"id": "58256249759.0", "produto": "Kit Caneta Esferográfica Trilux 032 1.0mm Faber-Castell 10 Cores ou 3 Cores", "variacao": "3 COLORIDAS", "sku": "3 COLORIDAS", "ean": "7891360629634.0", "preco": 12.7, "qtd_sistema": 0, "idx": 271}, {"id": "58256249759.0", "produto": "Kit Caneta Esferográfica Trilux 032 1.0mm Faber-Castell 10 Cores ou 3 Cores", "variacao": "3 CORES", "sku": "TRILUX 3", "ean": "7891360583875.0", "preco": 10.49, "qtd_sistema": 693, "idx": 272}, {"id": "58253281615.0", "produto": "Kit Caneta Esferográfica Trilux 032 1.0mm Faber-Castell 10 Cores ou 3 Cores", "variacao": "3 CORES", "sku": "TRILUX 3", "ean": "7891360583875.0", "preco": 7.25, "qtd_sistema": 0, "idx": 273}, {"id": "58203840695.0", "produto": "Kit Com 13 Serra Copo Diamantada Para Porcelanato/cerâmica", "variacao": "", "sku": "", "ean": "0.0", "preco": 700.0, "qtd_sistema": 1, "idx": 274}, {"id": "58212622053.0", "produto": "Kit De Casa Em Miniatura P, Casa De Bonecas Fairy Tale Wonde.", "variacao": "", "sku": "", "ean": "0.0", "preco": 299.99, "qtd_sistema": 1, "idx": 275}, {"id": "58253748843.0", "produto": "Kit De Instrumentos Dental Micro Motor Elétrico Strong 207b", "variacao": "", "sku": "", "ean": "0.0", "preco": 980.0, "qtd_sistema": 1, "idx": 276}, {"id": "58255350341.0", "produto": "Kit Hipótese Do Amor + A Razão Do Amor - Ali Hazelwood", "variacao": "", "sku": "", "ean": "0.0", "preco": 114.2, "qtd_sistema": 0, "idx": 277}, {"id": "58261469545.0", "produto": "Kit Microfone de  Bateria G-Mark GD1.7 7 Peças Bumbo Caixa Pratos + Estojo.", "variacao": "", "sku": "", "ean": "0.0", "preco": 820.0, "qtd_sistema": 0, "idx": 278}, {"id": "58255462020.0", "produto": "Kit Placa Mãe X99 + Xeon E5-2666 V3", "variacao": "", "sku": "", "ean": "0.0", "preco": 380.0, "qtd_sistema": 0, "idx": 279}, {"id": "23699433073.0", "produto": "Kit Placa Mãe X99-P4 2011-3 Conjunto  Desktop ECC Servidor DDR4 X99 2660V3 2680V4 Memória NVME.M", "variacao": "", "sku": "", "ean": "0.0", "preco": 238.9, "qtd_sistema": 0, "idx": 280}, {"id": "58262304775.0", "produto": "Kit Sistema Multimídia Automotivo Android – Aparelho + Chicotes e Acessórios.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 0, "idx": 281}, {"id": "58254333993.0", "produto": "Kit X99 + Intel Xeon 2630 V4 + 1x16 GB DDR4 ECC", "variacao": "", "sku": "", "ean": "0.0", "preco": 569.9, "qtd_sistema": 0, "idx": 282}, {"id": "22899314267.0", "produto": "Kit Xeon Zsus X99-8D4 Conjunto De Placa-Mãe", "variacao": "", "sku": "", "ean": "0.0", "preco": 685.0, "qtd_sistema": 0, "idx": 283}, {"id": "58254116632.0", "produto": "Kit de junta de pistão cilíndrico NICHE para Bombardier BRP Can-Am Commander Defender Outlander Renegade Max", "variacao": "", "sku": "", "ean": "0.0", "preco": 900.0, "qtd_sistema": 1, "idx": 284}, {"id": "58210519468.0", "produto": "Kit placa mãe x99 +xeon e5 2630v4 + 16gb De ram.", "variacao": "", "sku": "", "ean": "0.0", "preco": 280.0, "qtd_sistema": 0, "idx": 285}, {"id": "23694948015.0", "produto": "LANTERNA DE CABECA PARA LUGARES ESCUROS.", "variacao": "", "sku": "", "ean": "", "preco": 120.0, "qtd_sistema": 1, "idx": 286}, {"id": "23095000040.0", "produto": "LATERNA PARA MERGULHO PARA USO PROFISSIONAL.", "variacao": "", "sku": "", "ean": "0.0", "preco": 149.99, "qtd_sistema": 0, "idx": 287}, {"id": "58210951896.0", "produto": "LEITOR DE MEMÓRIA MICROSD SANDISK MOBILEMATE USB 3.0.", "variacao": "", "sku": "", "ean": "0.0", "preco": 87.0, "qtd_sistema": 27, "idx": 288}, {"id": "58260974595.0", "produto": "LIVRO  TEMPESTADE DE ÔNIX- REBECCA YARROS", "variacao": "", "sku": "", "ean": "0.0", "preco": 64.9, "qtd_sistema": 0, "idx": 289}, {"id": "22299530369.0", "produto": "LIVRO -CONDUTAS NA SALA DE EMERGENCIA-LACRADO. Rômulo Augusto dos Santos.", "variacao": "", "sku": "", "ean": "0.0", "preco": 179.99, "qtd_sistema": 1, "idx": 290}, {"id": "23394994053.0", "produto": "LIVRO 4- A TEMPESTADE DE ECOS- CHISTELLE DABOS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 54.0, "qtd_sistema": 0, "idx": 291}, {"id": "58261717152.0", "produto": "LIVRO A ARTE DA GUERRA- SUN TZU.", "variacao": "", "sku": "", "ean": "0.0", "preco": 19.9, "qtd_sistema": 1, "idx": 292}, {"id": "58260967157.0", "produto": "LIVRO A CIRANDA  DAS MULHERES SÁBIAS CLARISSA PINKOLA ESTÉS EDITORA ROCCO CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 41.9, "qtd_sistema": 0, "idx": 293}, {"id": "58261046979.0", "produto": "LIVRO A SERPENTE E AS ASAS FEITAS DE NOITE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 70.0, "qtd_sistema": 1, "idx": 294}, {"id": "22294997674.0", "produto": "LIVRO ALICE NO PAÍS DAS MARAVILHAS- LEWIS CARROLL/ CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.9, "qtd_sistema": 1, "idx": 295}, {"id": "58211730224.0", "produto": "LIVRO AS ARMAS DA PERSUASÃO- ROBERT B. CIALDINI.", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.0, "qtd_sistema": 0, "idx": 296}, {"id": "23294966641.0", "produto": "LIVRO AS CRÔNICAS DE NÁRNIA A CADEIRA DE PRATA/ O SOBRINHO DO MAGO/O CAVALO E SEU MENINO/O LEÃO/A VIAGEM DO......", "variacao": "A CADEIRA DE PRATA", "sku": "LIVRO AS CRÔNICAS DE A CADEIRA DE PRATA.", "ean": "0.0", "preco": 45.0, "qtd_sistema": 0, "idx": 297}, {"id": "23294966641.0", "produto": "LIVRO AS CRÔNICAS DE NÁRNIA A CADEIRA DE PRATA/ O SOBRINHO DO MAGO/O CAVALO E SEU MENINO/O LEÃO/A VIAGEM DO......", "variacao": "A ULTIMA BATALHA", "sku": "LIVRO AS CRÔNICAS A ULTIMA BATALHA", "ean": "0.0", "preco": 25.0, "qtd_sistema": 0, "idx": 298}, {"id": "23294966641.0", "produto": "LIVRO AS CRÔNICAS DE NÁRNIA A CADEIRA DE PRATA/ O SOBRINHO DO MAGO/O CAVALO E SEU MENINO/O LEÃO/A VIAGEM DO......", "variacao": "O CAVALO E SEU MENINO", "sku": "LIVRO AS CRÔNICAS DE O CAVALO E SEU MENINO", "ean": "0.0", "preco": 46.7, "qtd_sistema": 0, "idx": 299}, {"id": "23294966641.0", "produto": "LIVRO AS CRÔNICAS DE NÁRNIA A CADEIRA DE PRATA/ O SOBRINHO DO MAGO/O CAVALO E SEU MENINO/O LEÃO/A VIAGEM DO......", "variacao": "O LEÃO E A FEITICE...", "sku": "LIVRO AS CRÔNICAS DE O LEÃO A FEITICEIRA..", "ean": "0.0", "preco": 49.99, "qtd_sistema": 0, "idx": 300}, {"id": "23294966641.0", "produto": "LIVRO AS CRÔNICAS DE NÁRNIA A CADEIRA DE PRATA/ O SOBRINHO DO MAGO/O CAVALO E SEU MENINO/O LEÃO/A VIAGEM DO......", "variacao": "O SOBRINHO DO MAGO", "sku": "LIVRO AS CRÔNICAS DE O SOBRINHO DO MAGO", "ean": "0.0", "preco": 49.9, "qtd_sistema": 0, "idx": 301}, {"id": "23294966641.0", "produto": "LIVRO AS CRÔNICAS DE NÁRNIA A CADEIRA DE PRATA/ O SOBRINHO DO MAGO/O CAVALO E SEU MENINO/O LEÃO/A VIAGEM DO......", "variacao": "PRÍNCIPE CASPIEN", "sku": "LIVRO AS CRÔNICAS PRÍNCIPE...", "ean": "0.0", "preco": 46.0, "qtd_sistema": 1, "idx": 302}, {"id": "23294966641.0", "produto": "LIVRO AS CRÔNICAS DE NÁRNIA A CADEIRA DE PRATA/ O SOBRINHO DO MAGO/O CAVALO E SEU MENINO/O LEÃO/A VIAGEM DO......", "variacao": "VIAGEM DO PEREGRINO  ALVORADA", "sku": "LIVRO AS CRÔNICAS, A VIAGEM DO PEREGRINO DA ALVORADA.", "ean": "0.0", "preco": 45.99, "qtd_sistema": 1, "idx": 303}, {"id": "22795002581.0", "produto": "LIVRO AUGUSTO CURY- GESTÃO DA EMOÇÃO PARA QUALIDADE DE VIDA- 4 LIVROS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 48.9, "qtd_sistema": 1, "idx": 304}, {"id": "58261057790.0", "produto": "LIVRO BISMARK UMA VIDA. JONATHAN STEIBERG.", "variacao": "", "sku": "", "ean": "0.0", "preco": 150.0, "qtd_sistema": 0, "idx": 305}, {"id": "58261718741.0", "produto": "LIVRO BÍBLIA MULHERES- VIVIANE MARTINELLO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 229.0, "qtd_sistema": 1, "idx": 306}, {"id": "58261721590.0", "produto": "LIVRO BÍBLIA SAGRADA VERDADEIRA IDENTIDADE- ALEGREM-SE NO SENHOR.", "variacao": "", "sku": "", "ean": "0.0", "preco": 180.0, "qtd_sistema": 1, "idx": 307}, {"id": "58261767881.0", "produto": "LIVRO CAFÉ COM DEUS PAI  2025 - JUNIOR ROSTIROLA", "variacao": "", "sku": "", "ean": "0.0", "preco": 33.9, "qtd_sistema": 1, "idx": 308}, {"id": "58261723530.0", "produto": "LIVRO DEVOCIONAL MULHERES COM DEUS- 365 DIAS DE FÉ.", "variacao": "", "sku": "", "ean": "0.0", "preco": 22.0, "qtd_sistema": 0, "idx": 309}, {"id": "58261044007.0", "produto": "LIVRO ERA UMA VEZ UM CORAÇÃO PARTIDO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 58.0, "qtd_sistema": 0, "idx": 310}, {"id": "58211726961.0", "produto": "LIVRO HARRY POTTER E AS RELÍQUEAS DA MORTE- EDIÇÃO POTTERMORE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 47.99, "qtd_sistema": 0, "idx": 311}, {"id": "58261719285.0", "produto": "LIVRO HISTÓRIAS INCRIVEIS PARA CRIANÇAS 2 ANOS -HAPPY BOOKS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 43.0, "qtd_sistema": 0, "idx": 312}, {"id": "58260973500.0", "produto": "LIVRO LEVIATÃ , OU MATÉRIA, A FORMA E PODER DE UM ESTADO ECLIESIÁTICO E CIVIL- NOVO DFP", "variacao": "", "sku": "", "ean": "0.0", "preco": 72.0, "qtd_sistema": 0, "idx": 313}, {"id": "58210983304.0", "produto": "LIVRO MESTRES DO AR- GRUPO EDITORIAL RECORD", "variacao": "", "sku": "", "ean": "0.0", "preco": 160.0, "qtd_sistema": 1, "idx": 314}, {"id": "58260114341.0", "produto": "LIVRO NOSSOS DESTINOS ETERNOS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 55.0, "qtd_sistema": 1, "idx": 315}, {"id": "58261574223.0", "produto": "LIVRO PARCEIRA - ALI HAZELWOOD/ CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 59.9, "qtd_sistema": 0, "idx": 316}, {"id": "58211723230.0", "produto": "LIVRO UMA LUZ ENTRE NÓS- LIÇÕES PARA A VIDA- LAURA LYNNE JACKSON.", "variacao": "", "sku": "", "ean": "0.0", "preco": 19.0, "qtd_sistema": 1, "idx": 317}, {"id": "22499537968.0", "produto": "LIVRO-  SEGUNDA GUERRA MUNDIAL- ATONY BEEVOR/ CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 55.0, "qtd_sistema": 1, "idx": 318}, {"id": "58262038389.0", "produto": "LIVRO- A BAILARINA DE AUSCHWITZ- EDITH EVA EGER.LACRADO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 43.9, "qtd_sistema": 1, "idx": 319}, {"id": "58262694262.0", "produto": "LIVRO- A BATALHA DE TODO ADOLESCENTE- STEPHEN ARTERBURN FRED STOEKER COM MIKE YORKEY.", "variacao": "", "sku": "", "ean": "0.0", "preco": 32.0, "qtd_sistema": 1, "idx": 320}, {"id": "22994837993.0", "produto": "LIVRO- A Natureza da Terra-média", "variacao": "", "sku": "", "ean": "0.0", "preco": 53.65, "qtd_sistema": 0, "idx": 321}, {"id": "58254327638.0", "produto": "LIVRO- A garota do lago - Faro Editorial", "variacao": "", "sku": "", "ean": "0.0", "preco": 23.4, "qtd_sistema": 0, "idx": 322}, {"id": "58212672383.0", "produto": "LIVRO- BOX COMÉNTARIOS EXPOSITO DO NOVO TESTAMENTO- HERNANDES DIAS LOPES/ COMPLETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 499.99, "qtd_sistema": 1, "idx": 323}, {"id": "22795062591.0", "produto": "LIVRO- BOX LIVROS GEORGEORWELL- A REVOLUÇÃO DOS BICHOS/ DENTRO DA BALEIA E OUTROS ENSAIOS/ 1984.", "variacao": "", "sku": "", "ean": "0.0", "preco": 48.99, "qtd_sistema": 1, "idx": 324}, {"id": "23899481834.0", "produto": "LIVRO- BOX SHERLOCK HOLMES- OBRA COMPLETA CAPA DURA-ARTHUR CONAN DOYLE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 135.0, "qtd_sistema": 0, "idx": 325}, {"id": "22195059795.0", "produto": "LIVRO- CALOR QUE CURA- OKYU MOXABUSTÃO JAPONESA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 65.99, "qtd_sistema": 1, "idx": 326}, {"id": "58212046318.0", "produto": "LIVRO- CARTAS DE UM DIABO  A SEU APRENDIZ. C.S LEWIS/ LACRADO CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.99, "qtd_sistema": 0, "idx": 327}, {"id": "58262534771.0", "produto": "LIVRO- CEREJAS DO INFERNO- THAÍS BOITO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 57.0, "qtd_sistema": 1, "idx": 328}, {"id": "58212622211.0", "produto": "LIVRO- CURRENT DIAGNÓSTICO E TRATAMENTO AUTOR PAPADAKIS 64ª EDIÇÃO / CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 460.0, "qtd_sistema": 1, "idx": 329}, {"id": "22595031675.0", "produto": "LIVRO- HERÓIS DA FÉ- ORLANDO BOYER- CAPA DURA LACRADO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 45.99, "qtd_sistema": 1, "idx": 330}, {"id": "58262041313.0", "produto": "LIVRO- INTRODUÇÃO A HISTÓRIA DA FILOSOFIA- VOL.3 LACRADO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 95.0, "qtd_sistema": 1, "idx": 331}, {"id": "23599489726.0", "produto": "LIVRO- MANUAL DIAGNÓSTICO DE TRANSTORNOS MENTAIS- DSM-5-TR. CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 280.0, "qtd_sistema": 0, "idx": 332}, {"id": "23799521962.0", "produto": "LIVRO- NAUSICAA DO VALE DO VENTO- VOLUME 7- HAYAO MIYAZAKI.", "variacao": "", "sku": "", "ean": "0.0", "preco": 62.0, "qtd_sistema": 1, "idx": 333}, {"id": "58262041637.0", "produto": "LIVRO- O BEIJO DA NEVE - BABI A. SETTE. LIVRO LACRADO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 50.0, "qtd_sistema": 1, "idx": 334}, {"id": "58262627944.0", "produto": "LIVRO- PEDIATRIA BASEADO EM EVIDÊNCIAS/ CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 150.0, "qtd_sistema": 1, "idx": 335}, {"id": "58262696983.0", "produto": "LIVRO- SILÊNCIO NA FLORESTA- HARLAN COBEN.", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.99, "qtd_sistema": 0, "idx": 336}, {"id": "58213060923.0", "produto": "LIVRO- UMA CHAMA ENTRE AS CINZAS VOLUME 2- UMA TOCHA NA ESCURIDÃO- SABAA TAHIR", "variacao": "", "sku": "", "ean": "0.0", "preco": 44.99, "qtd_sistema": 1, "idx": 337}, {"id": "58262619372.0", "produto": "LIVRO- VIDA E GLÓRIA DE SÃO JOSÉ- EDWARD HEALY THOMPSON/CAPA DURA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 130.0, "qtd_sistema": 1, "idx": 338}, {"id": "58212748308.0", "produto": "LIVRO-MULHER EM QUEDA AUTORA BEST- SELLER DO NEW YORK TIMES.", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.4, "qtd_sistema": 1, "idx": 339}, {"id": "58253401887.0", "produto": "Lamborghini Fk9337 Blocos De Montar Carro Esportivo  Pcs 1299 Lamborghini Sián Verde QM00059", "variacao": "", "sku": "", "ean": "0.0", "preco": 110.0, "qtd_sistema": 0, "idx": 340}, {"id": "58209848556.0", "produto": "Lanterna Nextool Xiaomi Recarregável 2000lm 380m 5 Modos.", "variacao": "", "sku": "", "ean": "0.0", "preco": 489.0, "qtd_sistema": 1, "idx": 341}, {"id": "58261501557.0", "produto": "Led Andoer 60w Para Video E Foto 127/220v Preto Bicolor", "variacao": "", "sku": "", "ean": "0.0", "preco": 500.0, "qtd_sistema": 1, "idx": 342}, {"id": "58262835081.0", "produto": "Lego  Carro de Fórmula 1, Modelo de Carro Esportivo, Brinquedo Educativo de Montagem para Crianças", "variacao": "", "sku": "", "ean": "0.0", "preco": 52.5, "qtd_sistema": 0, "idx": 343}, {"id": "58209532775.0", "produto": "Leitor De Dvd Portátil  toca com Cd MP3 USB filme.", "variacao": "", "sku": "", "ean": "0.0", "preco": 250.0, "qtd_sistema": 0, "idx": 344}, {"id": "23594805397.0", "produto": "Lexar MicroSD 256GB Professional 1066x 160MB/s Classe", "variacao": "", "sku": "", "ean": "0.0", "preco": 210.0, "qtd_sistema": 0, "idx": 345}, {"id": "58204657702.0", "produto": "Limpador A Vapor Pressurizado", "variacao": "", "sku": "", "ean": "0.0", "preco": 275.0, "qtd_sistema": 0, "idx": 346}, {"id": "22794858007.0", "produto": "Linha de Pesca Multifilamento 8X – 300m Super Resistente e Macia.", "variacao": "", "sku": "", "ean": "0.0", "preco": 85.0, "qtd_sistema": 0, "idx": 347}, {"id": "58255539434.0", "produto": "Livro A Arte De Aproveitar-se Das Próprias Faltas : Segundo São Francisco De Sales - Padre Joseph Tissot", "variacao": "", "sku": "", "ean": "0.0", "preco": 40.0, "qtd_sistema": 0, "idx": 348}, {"id": "58205357061.0", "produto": "Livro A viúva silenciosa-Sheldon Sidney", "variacao": "", "sku": "", "ean": "0.0", "preco": 44.6, "qtd_sistema": 0, "idx": 349}, {"id": "22699344838.0", "produto": "Livro Aprendendo e se Divertindo - Alfabeto", "variacao": "", "sku": "", "ean": "0.0", "preco": 14.9, "qtd_sistema": 0, "idx": 350}, {"id": "58262755404.0", "produto": "Livro Da Terra à Lua - Júlio Verne - Principis Clássico Da Literatura Aventura Ciencia Ficção.", "variacao": "", "sku": "", "ean": "0.0", "preco": 15.0, "qtd_sistema": 1, "idx": 351}, {"id": "58204338348.0", "produto": "Livro Deixada Para Trás - Charlie Donlea", "variacao": "", "sku": "", "ean": "0.0", "preco": 39.6, "qtd_sistema": 0, "idx": 352}, {"id": "58255350565.0", "produto": "Livro Em um porão escuro-Editora Trama", "variacao": "", "sku": "", "ean": "0.0", "preco": 53.5, "qtd_sistema": 0, "idx": 353}, {"id": "58255344758.0", "produto": "Livro Hamlet-WILLIAM SHAKESPEARE", "variacao": "", "sku": "", "ean": "0.0", "preco": 35.1, "qtd_sistema": 0, "idx": 354}, {"id": "22999353493.0", "produto": "Livro Nana Vol.02", "variacao": "", "sku": "", "ean": "0.0", "preco": 29.9, "qtd_sistema": 0, "idx": 355}, {"id": "58209866793.0", "produto": "Livro O diário É A fé um Guia de oração, Meditação e intimidade Com Deus.", "variacao": "", "sku": "", "ean": "0.0", "preco": 55.0, "qtd_sistema": 1, "idx": 356}, {"id": "58205354193.0", "produto": "Livro Quem Manda No Mundo? Autor-Chomsky, Noam", "variacao": "", "sku": "", "ean": "0.0", "preco": 46.5, "qtd_sistema": 0, "idx": 357}, {"id": "58205360076.0", "produto": "Livro Se Os Gatos Desaparecessem Do - Genki Kawamura (Usado)", "variacao": "", "sku": "", "ean": "0.0", "preco": 29.9, "qtd_sistema": 0, "idx": 358}, {"id": "58205353462.0", "produto": "Livro Um Assassino Nos Portões-Verus Editora Ltda", "variacao": "", "sku": "", "ean": "0.0", "preco": 38.0, "qtd_sistema": 0, "idx": 359}, {"id": "58260269333.0", "produto": "Livro Yellowbook Fluxos E Condutas Na Emergência, 3ª Edição 2022.", "variacao": "", "sku": "", "ean": "0.0", "preco": 155.0, "qtd_sistema": 2, "idx": 360}, {"id": "58210230649.0", "produto": "Livro o Profeta é uma obra que encanta por sua beleza.", "variacao": "", "sku": "", "ean": "0.0", "preco": 35.0, "qtd_sistema": 0, "idx": 361}, {"id": "58212749762.0", "produto": "Livro- Como ser um ímã para O dinheiro técnicas poderosas para Atrair o sucesso financeiro.", "variacao": "", "sku": "", "ean": "0.0", "preco": 52.0, "qtd_sistema": 1, "idx": 362}, {"id": "23995042448.0", "produto": "Livro- Nunca é hora de parar - Liberte sua mente e desenvolva seu potencial inexploradoLivros -DAVID GOGGINS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 56.99, "qtd_sistema": 1, "idx": 363}, {"id": "58206666280.0", "produto": "Lixeira Com Sensor De 12 Litros, Cozinha, Banheiro,-NA COR PRETA", "variacao": "", "sku": "", "ean": "0.0", "preco": 185.0, "qtd_sistema": 0, "idx": 364}, {"id": "58259241624.0", "produto": "Lixeira Inteligente com Sensor de Presença 9,5L com Tampa.", "variacao": "", "sku": "", "ean": "0.0", "preco": 90.99, "qtd_sistema": 0, "idx": 365}, {"id": "58209709535.0", "produto": "Localizador De Veias Recarregável Para Acesso IV E Luz Ajustável De Flebotomia TODAS AS PELES.", "variacao": "", "sku": "", "ean": "", "preco": 83.0, "qtd_sistema": 0, "idx": 366}, {"id": "58210085421.0", "produto": "LuGx sugador de sujeira E DE PO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 190.0, "qtd_sistema": 1, "idx": 367}, {"id": "58212849851.0", "produto": "Luva Boxe E Muay Thai Training Black Tamanho 10.", "variacao": "", "sku": "", "ean": "0.0", "preco": 100.0, "qtd_sistema": 1, "idx": 368}, {"id": "58262136212.0", "produto": "Luva Shiduner Profissional Laranja com Acabamento Preto.", "variacao": "BRANCO", "sku": "Luva Shiduner Profissional  BRANCA COM ACABAMENTO DOURADO", "ean": "0.0", "preco": 49.99, "qtd_sistema": 1, "idx": 369}, {"id": "58262136212.0", "produto": "Luva Shiduner Profissional Laranja com Acabamento Preto.", "variacao": "LARANJA", "sku": "Luva Shiduner Profissional Laranja com Acabamento Preto.", "ean": "0.0", "preco": 49.99, "qtd_sistema": 1, "idx": 370}, {"id": "23194949786.0", "produto": "Luvas De Treinamento Robô Pneumáticas Elétricas Dispositivo De Luva Pneumática Para Hemiplegia.", "variacao": "LARANJA/MÃO ESQUERDA M", "sku": "MÃO ESQUERDA LARANJA", "ean": "0.0", "preco": 199.0, "qtd_sistema": 0, "idx": 371}, {"id": "58259860599.0", "produto": "Luz Noturna Ondulação Água Aurora USB 16 Cores LED Controle Remoto Cubo Presente Moderno Abajur", "variacao": "", "sku": "", "ean": "0.0", "preco": 42.0, "qtd_sistema": 0, "idx": 372}, {"id": "58203290644.0", "produto": "Lápis de Cor Ecolápis Multicolor Super 24 ou 36 Cores", "variacao": "24 CORES", "sku": "24 CORES", "ean": "7891360587477.0", "preco": 19.9, "qtd_sistema": 213, "idx": 373}, {"id": "58203290644.0", "produto": "Lápis de Cor Ecolápis Multicolor Super 24 ou 36 Cores", "variacao": "36 CORES", "sku": "36 CORES", "ean": "7891360587491.0", "preco": 23.9, "qtd_sistema": 0, "idx": 374}, {"id": "58204485256.0", "produto": "Lâmpada LED Golden Ultraled Vela Fit 6W ou A60 Fit 8W Bivolt 2700k", "variacao": "A60 FIT 8W", "sku": "A60 FIT 8W", "ean": "7897714353415.0", "preco": 19.9, "qtd_sistema": 209, "idx": 375}, {"id": "58204485256.0", "produto": "Lâmpada LED Golden Ultraled Vela Fit 6W ou A60 Fit 8W Bivolt 2700k", "variacao": "VELA FIT 6W", "sku": "VELA FIT 6W", "ean": "7897714353439.0", "preco": 19.9, "qtd_sistema": 565, "idx": 376}, {"id": "58206592960.0", "produto": "MAIMOOO-Keycap Layout russo, PBT Keycaps, XDA Profile, sublimação", "variacao": "", "sku": "", "ean": "0.0", "preco": 110.0, "qtd_sistema": 0, "idx": 377}, {"id": "23194853048.0", "produto": "MANHOT Tuya Smart Curtain Motor with Remote Control", "variacao": "", "sku": "", "ean": "0.0", "preco": 213.99, "qtd_sistema": 0, "idx": 378}, {"id": "58212524060.0", "produto": "MASSAGEADOR DE PERNAS COMPREESSÃO PNEUMÁTICA AR E AQUECIMENTO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.9, "qtd_sistema": 1, "idx": 379}, {"id": "58255457670.0", "produto": "MAXSUN-Placa Gráfica de Vídeo Gaming, Componente de Computador Desktop, RX 580, GDDR5, 256Bit, 2048SP, HDMI, DP, DVI.", "variacao": "", "sku": "", "ean": "0.0", "preco": 613.0, "qtd_sistema": 0, "idx": 380}, {"id": "58211429618.0", "produto": "MEGA EVERDRIVE TODOS OS JOGOS DE MEGA DRIVE E MASTER SYSTEM.", "variacao": "", "sku": "", "ean": "0.0", "preco": 130.0, "qtd_sistema": 0, "idx": 381}, {"id": "23594930928.0", "produto": "MEMORIA RAM KLLISRE 25600U-CL22 8GB DDR4 3200 KIT.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 382}, {"id": "58262497222.0", "produto": "MICROFONE AKG P120 CONDENSADOR DE ALTA PERFORMACE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 699.0, "qtd_sistema": 1, "idx": 383}, {"id": "58261393875.0", "produto": "MICROFONE PROFISSIONAL G-MARK  SEM FIO DUPLO UHF.", "variacao": "", "sku": "", "ean": "0.0", "preco": 499.0, "qtd_sistema": 1, "idx": 384}, {"id": "23599292580.0", "produto": "MINI Earbuds - Design ergonômico, som HIFI, resistente à água e controle inteligente.", "variacao": "", "sku": "", "ean": "0.0", "preco": 78.9, "qtd_sistema": 0, "idx": 385}, {"id": "58206749275.0", "produto": "MINI PC FIRE BAT INTEL INSED", "variacao": "", "sku": "", "ean": "0.0", "preco": 600.0, "qtd_sistema": 0, "idx": 386}, {"id": "58257017163.0", "produto": "MINI PC INTEL GMKTEC G3 8GB DDR4 RAM 256GB PCIe M.2 SSD", "variacao": "", "sku": "", "ean": "6972570962986.0", "preco": 2800.0, "qtd_sistema": 0, "idx": 387}, {"id": "58211156917.0", "produto": "MOEDOR DE CAFÉ MANUAL  ICAFILAS  PORTÁTIL PROFISSIONAL 7/5 NÚCLEO ANGULAR DE ALUMÍNIO DE ALTA QUALIDADE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 229.0, "qtd_sistema": 0, "idx": 388}, {"id": "58261581930.0", "produto": "MOEDOR DE CAFÉ MANUUAL I COFFEE M3 PRO HEGONÔMICO 12 NÍVEIS DE MOAGEM.", "variacao": "", "sku": "", "ean": "0.0", "preco": 270.0, "qtd_sistema": 0, "idx": 389}, {"id": "58255539937.0", "produto": "Mangá Panini Chaos Game Volume 04", "variacao": "", "sku": "", "ean": "0.0", "preco": 40.0, "qtd_sistema": 1, "idx": 390}, {"id": "58205145074.0", "produto": "Manmu 120mm Ventilador de caixa de computador mudo arco-íris luz LED para ventiladores Rgb de radiador para resfriamento", "variacao": "", "sku": "", "ean": "0.0", "preco": 40.0, "qtd_sistema": 1, "idx": 391}, {"id": "58206579883.0", "produto": "Manometro De 3 Ponteiros", "variacao": "", "sku": "", "ean": "", "preco": 638.0, "qtd_sistema": 1, "idx": 392}, {"id": "58203591986.0", "produto": "Meclands blade75 junta de troca quente sem fio bt5.0/2.4ghz/USB-C teclado mecânico de alumínio", "variacao": "", "sku": "", "ean": "0.0", "preco": 530.0, "qtd_sistema": 0, "idx": 393}, {"id": "58212356203.0", "produto": "Medidor de Potência ThinkRider PP5 – Alta Precisão para Treinos de Ciclismo.", "variacao": "", "sku": "", "ean": "0.0", "preco": 70.0, "qtd_sistema": 1, "idx": 394}, {"id": "58259693165.0", "produto": "Meia Gaiola De Câmera Smallrig Para Sony Alpha 7 V/alpha 7r.", "variacao": "", "sku": "", "ean": "0.0", "preco": 240.0, "qtd_sistema": 1, "idx": 395}, {"id": "58208111729.0", "produto": "Memoria ram Kllisre DDR4 3200 8gb.", "variacao": "", "sku": "", "ean": "0.0", "preco": 190.0, "qtd_sistema": 0, "idx": 396}, {"id": "58204125269.0", "produto": "Memória DDR4 Kingston Fury 8GB 5200Mhz - lacrada", "variacao": "", "sku": "", "ean": "740617320442.0", "preco": 699.99, "qtd_sistema": 0, "idx": 397}, {"id": "22199324293.0", "produto": "Memória Ddr3 8gb 1600mhz Juhor Desktop Udimm Vermelha", "variacao": "", "sku": "", "ean": "0.0", "preco": 180.0, "qtd_sistema": 0, "idx": 398}, {"id": "58210076965.0", "produto": "Memória Machinist ASSIST E-SPORTS GAMING.", "variacao": "", "sku": "", "ean": "0.0", "preco": 190.0, "qtd_sistema": 0, "idx": 399}, {"id": "58253643996.0", "produto": "Memória RAM Fury DDR3 azul 4GB 1 HyperX HX316C10F/4", "variacao": "", "sku": "", "ean": "0.0", "preco": 111.9, "qtd_sistema": 0, "idx": 400}, {"id": "22394832548.0", "produto": "Memória RAM Jazer 8GB DDR4 3200MHz Gamer com Dissipador - Nova", "variacao": "", "sku": "", "ean": "0.0", "preco": 430.0, "qtd_sistema": 0, "idx": 401}, {"id": "23499289421.0", "produto": "Memória RAM Kllisre 8GB DDR4 3200MHz", "variacao": "", "sku": "", "ean": "0.0", "preco": 348.0, "qtd_sistema": 0, "idx": 402}, {"id": "22599307748.0", "produto": "Memória RAM de servidor ENVINDA DDR3", "variacao": "", "sku": "", "ean": "0.0", "preco": 220.0, "qtd_sistema": 2, "idx": 403}, {"id": "58203656884.0", "produto": "Memória Ram Ddr5 1 X 16gb 6000mhz", "variacao": "", "sku": "", "ean": "0.0", "preco": 340.0, "qtd_sistema": 0, "idx": 404}, {"id": "58203664078.0", "produto": "Memória Ram Desktop Gamer PUSKILL KILLBLADE DDR4 16gb 2666mhz Cl19 Dimm", "variacao": "", "sku": "", "ean": "0.0", "preco": 450.0, "qtd_sistema": 0, "idx": 405}, {"id": "58207020506.0", "produto": "Memória Ram KLLISRE PC4-2560U-CL22 16GB DDR4 3200HZ.", "variacao": "", "sku": "", "ean": "0.0", "preco": 400.0, "qtd_sistema": 0, "idx": 406}, {"id": "22499324116.0", "produto": "Memória UDIMM para Computador de Mesa (Desktop) de 2666MHz com 8GB DE RAM Dissipador de Calor\"", "variacao": "", "sku": "", "ean": "0.0", "preco": 237.0, "qtd_sistema": 0, "idx": 407}, {"id": "22999385022.0", "produto": "Memória para Notebook 8GB RAM DDR4 2666MHZ PUSKILL", "variacao": "", "sku": "", "ean": "0.0", "preco": 165.0, "qtd_sistema": 0, "idx": 408}, {"id": "58257023148.0", "produto": "Memória ram KLLISRE PC4-2130U-CL19 8GB DDR4 2666", "variacao": "", "sku": "", "ean": "0.0", "preco": 240.0, "qtd_sistema": 0, "idx": 409}, {"id": "58206738196.0", "produto": "Meta Quest 3 Cor Branco 512 GB com Joysticks.", "variacao": "", "sku": "", "ean": "0.0", "preco": 4185.0, "qtd_sistema": 0, "idx": 410}, {"id": "58254340448.0", "produto": "Micro SD Card 512GB, VNKISSCUTE High Speed Memory Card Memory Card Large Capacity SD Card for Cameras, Phones", "variacao": "", "sku": "", "ean": "0.0", "preco": 465.9, "qtd_sistema": 0, "idx": 411}, {"id": "58251646988.0", "produto": "Microfone Com Alto-falante Gopresence Speaker Pro 2 Conferência Omnidirecional 360º", "variacao": "", "sku": "", "ean": "0.0", "preco": 235.0, "qtd_sistema": 0, "idx": 412}, {"id": "22999297472.0", "produto": "Microfone Profissional Sem Fio Sennheiser Ew135 G4 Cor Preto/branco Preto/branco", "variacao": "", "sku": "", "ean": "0.0", "preco": 850.0, "qtd_sistema": 0, "idx": 413}, {"id": "58262698225.0", "produto": "Microfone Shure Glxd4 Beta 58a UHF Profissional Sem Fio Para Grandes Eventos Digitais.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 0, "idx": 414}, {"id": "58212704381.0", "produto": "Microfones Bomge 410V Dinâmico Omnidirecional cor preto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 205.0, "qtd_sistema": 1, "idx": 415}, {"id": "58254718371.0", "produto": "Microscópio Digital | Tela 4,3 Polegadas | Aumento 1000X sem  o suporte.", "variacao": "", "sku": "", "ean": "0.0", "preco": 190.0, "qtd_sistema": 0, "idx": 416}, {"id": "58211635918.0", "produto": "Mini Blocos 3D De Montar Brinquedo Magnético Construção Educativo Infantil 3D 130 peças.", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 0, "idx": 417}, {"id": "58255029118.0", "produto": "Mini Máquina de Garra (Claw Machine) Infantil", "variacao": "", "sku": "", "ean": "0.0", "preco": 174.9, "qtd_sistema": 0, "idx": 418}, {"id": "58210669980.0", "produto": "Mini PC Firewall Appliance pfSense - 4x Intel NIC, SSD, Roteador de Rede.", "variacao": "", "sku": "", "ean": "0.0", "preco": 450.0, "qtd_sistema": 0, "idx": 419}, {"id": "23299449729.0", "produto": "Mini Pc Gmktec M3 Win11 Intel I9 12900 5ghz Ssd 1tb na cor verde.", "variacao": "", "sku": "", "ean": "0.0", "preco": 2500.0, "qtd_sistema": 0, "idx": 420}, {"id": "22794852593.0", "produto": "Mini Pc Intel Quad-core 2.9ghz Celeron 8gb Ram 128gb Ssd 127/220v", "variacao": "", "sku": "", "ean": "0.0", "preco": 949.99, "qtd_sistema": 0, "idx": 421}, {"id": "58254971047.0", "produto": "Mini Pc Soyo Intel N4000 6gb+128gb Windows", "variacao": "", "sku": "", "ean": "764899132159.0", "preco": 700.0, "qtd_sistema": 0, "idx": 422}, {"id": "22694828556.0", "produto": "Mini Soundbar Baseus Aequr Ds10 Bluetooth 5.3 - Com Bateria Preto Bateria Interna", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 423}, {"id": "58254407817.0", "produto": "Mini Teclado Mecânico Para Jogos T60 Usb, Retroiluminado, Co", "variacao": "", "sku": "", "ean": "0.0", "preco": 175.99, "qtd_sistema": 1, "idx": 424}, {"id": "58210690685.0", "produto": "Mini rastreador St903 sinotrack  GPS  St-903.", "variacao": "", "sku": "", "ean": "0.0", "preco": 200.0, "qtd_sistema": 0, "idx": 425}, {"id": "58254416470.0", "produto": "Mini teclado 60%: Indica o tamanho ultra-compacto. Ele não tem o teclado numérico, as setas dedicadas", "variacao": "", "sku": "", "ean": "0.0", "preco": 200.0, "qtd_sistema": 0, "idx": 426}, {"id": "58211029261.0", "produto": "Miniatura 91 Chevrolet Omega Cd Suprema 1:24 California Toys.", "variacao": "", "sku": "", "ean": "0.0", "preco": 290.0, "qtd_sistema": 0, "idx": 427}, {"id": "58204124479.0", "produto": "Miniatura Porsche 911 992 Gt3 Rs 1/18 Norev Verde", "variacao": "", "sku": "", "ean": "0.0", "preco": 800.0, "qtd_sistema": 0, "idx": 428}, {"id": "23294942521.0", "produto": "Mllse Nvidia Geforce Gt 740 4gb Graphics Card Gddr3 Hdmi Dvi", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 429}, {"id": "58262120551.0", "produto": "Moedor de Café Elétrico Wancle 28 Ajustes Grãos Coffee, 110V.", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 0, "idx": 430}, {"id": "58206639880.0", "produto": "Moedor de café Time More Chestnut série C, projetado para uma xícara de bom café.", "variacao": "", "sku": "", "ean": "0.0", "preco": 165.0, "qtd_sistema": 0, "idx": 431}, {"id": "58203404416.0", "produto": "Molde rei  carro esportivo modelo de carro de corrida  e vitrine de acrílico blocos.", "variacao": "", "sku": "", "ean": "0.0", "preco": 80.0, "qtd_sistema": 0, "idx": 432}, {"id": "58204486608.0", "produto": "Monkey D. Luffy: O Homem que se tornará o Rei dos Piratas", "variacao": "", "sku": "", "ean": "0.0", "preco": 90.0, "qtd_sistema": 1, "idx": 433}, {"id": "22999352522.0", "produto": "Monster Truck Gigante Cangy 4wd Off Road 1:12 37cm Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 420.0, "qtd_sistema": 0, "idx": 434}, {"id": "58203418297.0", "produto": "Motor Elétrico L'ugx Portátil Bivol", "variacao": "", "sku": "", "ean": "0.0", "preco": 434.0, "qtd_sistema": 1, "idx": 435}, {"id": "22095062253.0", "produto": "Mouse - Mt760min Sem Fio Bluetooth 5.0 Compacto Gris Claro.", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.99, "qtd_sistema": 1, "idx": 436}, {"id": "58253409558.0", "produto": "Mouse Gamer 2400 Dpi 6 Botões Usb Preto Led Hayom", "variacao": "", "sku": "", "ean": "7899095441583.0", "preco": 31.0, "qtd_sistema": 0, "idx": 437}, {"id": "23199282789.0", "produto": "Mouse Gamer 8 Botões Mu2905 2400dpi Hayom Preto", "variacao": "", "sku": "", "ean": "7899095441514.0", "preco": 32.9, "qtd_sistema": 0, "idx": 438}, {"id": "58255449248.0", "produto": "Mouse Gamer Delux M800 Pro 3395 Branco Completo Sem Fio 2.4 Branco", "variacao": "", "sku": "", "ean": "0.0", "preco": 105.0, "qtd_sistema": 0, "idx": 439}, {"id": "58262952632.0", "produto": "Mouse Gamer M600 Wireless Ultra-leve Preto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 124.99, "qtd_sistema": 1, "idx": 440}, {"id": "58203585012.0", "produto": "Mouse Gamer MU-2911 Hayom DPI 6 Botões Preto com LED", "variacao": "", "sku": "", "ean": "7899095441576.0", "preco": 31.0, "qtd_sistema": 1, "idx": 441}, {"id": "23399347714.0", "produto": "Mouse Gamer Redragon Impact Rgb, 12400 Dpi, 18 Botoes, Preto Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 165.0, "qtd_sistema": 0, "idx": 442}, {"id": "58205462610.0", "produto": "Mouse Gamer Sem Fio Attack Shark X6 26000dpi Pixart Paw3395 Dock Branco", "variacao": "", "sku": "", "ean": "0.0", "preco": 230.0, "qtd_sistema": 0, "idx": 443}, {"id": "58205525859.0", "produto": "Mouse Gamer Sem Fio Logitech G304 LIGHTSPEED, 12000 DPI, 6 Botões, Preto - 910-005281", "variacao": "", "sku": "", "ean": "0.0", "preco": 55.0, "qtd_sistema": 0, "idx": 444}, {"id": "22294845695.0", "produto": "Mouse Gamer Sem Fio VXE R1 SE+ Preto PAW3395 18000 DPI Bluetooth", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 0, "idx": 445}, {"id": "58255465440.0", "produto": "Mouse Iluminação LED de 7 Cores: Iluminação interna que muda de cor para um visual moderno e gamer.", "variacao": "", "sku": "", "ean": "0.0", "preco": 15.0, "qtd_sistema": 0, "idx": 446}, {"id": "58203424080.0", "produto": "Mouse Para Jogo Hayom Gamer Mu2910 Preto Usb Led", "variacao": "", "sku": "", "ean": "7899095441569.0", "preco": 24.99, "qtd_sistema": 0, "idx": 447}, {"id": "58262670419.0", "produto": "Mouse VXE R1 Pro Max White  NA CAIXA NOVO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 169.99, "qtd_sistema": 1, "idx": 448}, {"id": "58255455615.0", "produto": "Mouse Wireless Rapoo Vt3 Pro Max Preto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 464.0, "qtd_sistema": 0, "idx": 449}, {"id": "23094851314.0", "produto": "Mouse sem fio AJAZZ AJ159 PRO com sensor laser.", "variacao": "", "sku": "", "ean": "0.0", "preco": 435.0, "qtd_sistema": 0, "idx": 450}, {"id": "58210594049.0", "produto": "Mouse Óptico Logitech M90 Com Fio, 1000 Dpi e Design Ambidestro.", "variacao": "", "sku": "", "ean": "0.0", "preco": 30.0, "qtd_sistema": 0, "idx": 451}, {"id": "58206598276.0", "produto": "Mucai mka610 usb mini esports teclado mecânico com fio eixo vermelho led efeito de luz jogos pc", "variacao": "", "sku": "", "ean": "0.0", "preco": 89.0, "qtd_sistema": 0, "idx": 452}, {"id": "58204078336.0", "produto": "Multimídia Adak Iplay G2 Corolla Fielder 2003 A 2008 64gb Carplay Android Gps Bluetooth Qled 9p", "variacao": "", "sku": "", "ean": "0.0", "preco": 832.0, "qtd_sistema": 0, "idx": 453}, {"id": "22195008612.0", "produto": "MÁQUINA DE TATUAGEM SEM FIO AXON, PAINEL DIGITAL 6 AJUSTES. PRETO COM PRATA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1699.0, "qtd_sistema": 1, "idx": 454}, {"id": "58253725232.0", "produto": "Máquina Difusora De Perfume Montada Na Parede | Difusor De", "variacao": "", "sku": "", "ean": "0.0", "preco": 247.0, "qtd_sistema": 0, "idx": 455}, {"id": "58251641272.0", "produto": "Máquina Micromotora Elétrica STRONG 207B 35K RPM 220V Para Laboratório", "variacao": "", "sku": "", "ean": "0.0", "preco": 289.0, "qtd_sistema": 0, "idx": 456}, {"id": "58260068446.0", "produto": "Máquina de tattoo Pen yilong 4mm.", "variacao": "", "sku": "", "ean": "0.0", "preco": 250.0, "qtd_sistema": 0, "idx": 457}, {"id": "58254197686.0", "produto": "Mãos Livres Bluetooth para Capacete de Moto", "variacao": "", "sku": "", "ean": "0.0", "preco": 50.0, "qtd_sistema": 0, "idx": 458}, {"id": "58204088734.0", "produto": "NAMSTE Smart Aroma Diffuser Hotels professional Fragrance Diffuser 1000m³ Large Room Aroma Machine With Fan Bluetooth Co", "variacao": "", "sku": "", "ean": "0.0", "preco": 329.0, "qtd_sistema": 0, "idx": 459}, {"id": "23499514572.0", "produto": "NIIMBOT Impressora de Etiquetas Portátil Bluetooth 2 Polegadas - Sem Tinta, App Gratuito.", "variacao": "azul escuro", "sku": "NIIMBOT Impressora de Etiquetas Portátil Bluetooth 2 Polegadas - Sem Tinta, App Gratuito, Bateria 15", "ean": "0.0", "preco": 110.0, "qtd_sistema": 1, "idx": 460}, {"id": "58204165475.0", "produto": "NVME M.2 SSD KINGSPEC BRAND 256GB", "variacao": "", "sku": "", "ean": "0.0", "preco": 260.0, "qtd_sistema": 0, "idx": 461}, {"id": "58254913873.0", "produto": "Nappa Ichiban Kuji Estátua 26.5cm Dragon Ball Z (Usado)", "variacao": "", "sku": "", "ean": "0.0", "preco": 929.99, "qtd_sistema": 0, "idx": 462}, {"id": "22594831235.0", "produto": "Negativo 1600W Leve 110.000 rpm Motor Brushless 59dB Baixo Ruído", "variacao": "", "sku": "", "ean": "0.0", "preco": 691.0, "qtd_sistema": 1, "idx": 463}, {"id": "58254907873.0", "produto": "Niimbot D110 Wireless Bt Label Maker Machine Pocket Label", "variacao": "", "sku": "", "ean": "0.0", "preco": 129.9, "qtd_sistema": 0, "idx": 464}, {"id": "58260521317.0", "produto": "Nova placa-mãe X99 para computador DDR4 ECC memória compatível com LGA-2011-3,4", "variacao": "", "sku": "", "ean": "0.0", "preco": 285.0, "qtd_sistema": 0, "idx": 465}, {"id": "58254332210.0", "produto": "Nunca Saia Sozinho", "variacao": "", "sku": "", "ean": "0.0", "preco": 31.0, "qtd_sistema": 0, "idx": 466}, {"id": "58255447813.0", "produto": "O BetaFPV LiteRadio 2 SE com o protocolo ELRS V3 (controle remoto)", "variacao": "", "sku": "", "ean": "0.0", "preco": 320.0, "qtd_sistema": 0, "idx": 467}, {"id": "58255538993.0", "produto": "O Clube Do Pepezinho: Influenciadores Vol. 5", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.0, "qtd_sistema": 0, "idx": 468}, {"id": "58204056264.0", "produto": "O FindFish Smart Portable Sonar (na cor verde/green) é um caso diferente do teclado que discutimos antes. Como ele é um", "variacao": "", "sku": "", "ean": "0.0", "preco": 168.0, "qtd_sistema": 0, "idx": 469}, {"id": "58211471146.0", "produto": "O ILUMINADO- STEPHEN KING.", "variacao": "", "sku": "", "ean": "0.0", "preco": 59.0, "qtd_sistema": 0, "idx": 470}, {"id": "22394969096.0", "produto": "O Verão em que Hikaru Morreu - Volume 01 - Editora Panini  - Novo.", "variacao": "", "sku": "", "ean": "0.0", "preco": 39.0, "qtd_sistema": 0, "idx": 471}, {"id": "58204488989.0", "produto": "Optical Fiber Tester: Testador de Fibra Óptica.", "variacao": "", "sku": "", "ean": "0.0", "preco": 700.0, "qtd_sistema": 0, "idx": 472}, {"id": "58210282200.0", "produto": "Orando a Palavra | Valnice Milhomens.", "variacao": "", "sku": "", "ean": "0.0", "preco": 22.0, "qtd_sistema": 0, "idx": 473}, {"id": "58254930266.0", "produto": "Outfany Cooling Ace, Ar Condicionado Portátil Mi-ni Com 3 Velocidades, Relaxix Ar Condicionado Pessoal Para Ambientes", "variacao": "", "sku": "", "ean": "0.0", "preco": 245.99, "qtd_sistema": 0, "idx": 474}, {"id": "58260943043.0", "produto": "PEN DRIVE SANDISK 128GB/ 150MB/s USB 3.0 FLASH DRIVE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 118.0, "qtd_sistema": 0, "idx": 475}, {"id": "58210950145.0", "produto": "PEN DRIVE SANDISK 32GB ULTRA FLAIR USB 3.0 150MB/s.", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.99, "qtd_sistema": 0, "idx": 476}, {"id": "58210968660.0", "produto": "PEN DRIVE SANDISK ULTRA DUAL DRIVE  M3.0  256GB.", "variacao": "", "sku": "", "ean": "0.0", "preco": 329.0, "qtd_sistema": 14, "idx": 477}, {"id": "23199488875.0", "produto": "PEN DRIVE SANDISK ULTRA LUXE USB 3.2 GEN 1/ 512GB/ 400MB/s.", "variacao": "", "sku": "", "ean": "0.0", "preco": 290.0, "qtd_sistema": 0, "idx": 478}, {"id": "23899475478.0", "produto": "PLACA DE VÍDEO MLLSE 4GB GDDR5 INTERFACE 128-BIT NUCLEO 512.", "variacao": "", "sku": "", "ean": "0.0", "preco": 499.99, "qtd_sistema": 0, "idx": 479}, {"id": "22194985686.0", "produto": "PLACA MOUGOL MOTHERBOARD X99E V1.2 INTEL XEON ES-2680V4.", "variacao": "", "sku": "", "ean": "0.0", "preco": 270.0, "qtd_sistema": 0, "idx": 480}, {"id": "23195029701.0", "produto": "PLACA MÃE MACHINIST X99 PR9 LGA 2011 DDR4 FORMATO M-ATX.", "variacao": "", "sku": "", "ean": "0.0", "preco": 349.0, "qtd_sistema": 0, "idx": 481}, {"id": "23194992944.0", "produto": "PLACA-MAE X99 P4 LGA 2011-3 V4 ZSUS GAMER SEM PROCESSADOR.", "variacao": "", "sku": "", "ean": "0.0", "preco": 380.0, "qtd_sistema": 0, "idx": 482}, {"id": "58253642720.0", "produto": "PRISM 4 RS caixa do computador ventilador 12cm ARGB 4 pinos= 12V  de ar COR PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 34.0, "qtd_sistema": 0, "idx": 483}, {"id": "58211357656.0", "produto": "PWM PC Processador Cooler para Intel LGA 1700 1200 1150 1151 AMD AM3 AM4.", "variacao": "", "sku": "", "ean": "0.0", "preco": 39.9, "qtd_sistema": 0, "idx": 484}, {"id": "22894843718.0", "produto": "Paquímetro Digital Mitutoyo 300mm Resolução 0.01mm Modelo 500-196-30", "variacao": "", "sku": "", "ean": "0.0", "preco": 263.9, "qtd_sistema": 0, "idx": 485}, {"id": "22699305744.0", "produto": "Paquímetro Digital Profissional Aço Inox à Prova d'àgua IP54 C/ Estojo 200 mm SHAHE Original Tela LCD", "variacao": "", "sku": "", "ean": "0.0", "preco": 239.0, "qtd_sistema": 0, "idx": 486}, {"id": "58205125959.0", "produto": "Par De Controle Remoto 6 Mov P/ Talha Ponte Rolante Henjel", "variacao": "", "sku": "", "ean": "0.0", "preco": 295.0, "qtd_sistema": 0, "idx": 487}, {"id": "58259535263.0", "produto": "Para Insta360 X4 Stealth Dive Case, Acessório 50 M", "variacao": "", "sku": "", "ean": "0.0", "preco": 572.0, "qtd_sistema": 1, "idx": 488}, {"id": "23294930430.0", "produto": "Pen Drive Sandisk 256Gb  Shift Usb 3.0.", "variacao": "", "sku": "", "ean": "0.0", "preco": 129.99, "qtd_sistema": 0, "idx": 489}, {"id": "58201650963.0", "produto": "PenDrive Sandisk Ultra 256gb Flash Dual Drive Usb 3.1 Type-c", "variacao": "", "sku": "", "ean": "619659154844.0", "preco": 175.0, "qtd_sistema": 0, "idx": 490}, {"id": "23999267104.0", "produto": "Pistola De Calafetagem Elétrica Sem Fio Compatível Com Bateria", "variacao": "", "sku": "", "ean": "0.0", "preco": 450.0, "qtd_sistema": 0, "idx": 491}, {"id": "23994936902.0", "produto": "Pistola Massageadora Profissional Com Liberação Miofascial.", "variacao": "", "sku": "", "ean": "0.0", "preco": 298.0, "qtd_sistema": 0, "idx": 492}, {"id": "58254211202.0", "produto": "Pistola Massageadora Profissional Semelhante Phoenix Elétrica Liberação Miofascial 30 Velocidades e 6 Ponteiras", "variacao": "", "sku": "", "ean": "", "preco": 366.0, "qtd_sistema": 0, "idx": 493}, {"id": "58253839875.0", "produto": "Pistola de Pintura Automática Industrial WA-200-202P com Bico de 2.0mm\"", "variacao": "", "sku": "", "ean": "0.0", "preco": 400.0, "qtd_sistema": 0, "idx": 494}, {"id": "58253907146.0", "produto": "Pistola de Pintura Profissional de Alta Qualidade Edição Limitada \"Cyber\" para Carros – Bicos de 1.3mm/1.8mm – Pistola d", "variacao": "", "sku": "", "ean": "0.0", "preco": 278.0, "qtd_sistema": 0, "idx": 495}, {"id": "58254776810.0", "produto": "Placa De Captura Ugreen Cm630 Hdmi Usb-c 1080p60", "variacao": "", "sku": "", "ean": "6941876233625.0", "preco": 205.99, "qtd_sistema": 0, "idx": 496}, {"id": "58253629450.0", "produto": "Placa De Video Vga Nvidia Geforce Gt610 64 Bits 2gb Ddr3 Pci-express Duex", "variacao": "", "sku": "", "ean": "0.0", "preco": 165.99, "qtd_sistema": 0, "idx": 497}, {"id": "58260600186.0", "produto": "Placa Mae Machinist X99-B9 DDR4 NVME PCIE GEN3 x4.", "variacao": "", "sku": "", "ean": "0.0", "preco": 700.0, "qtd_sistema": 0, "idx": 498}, {"id": "22599461462.0", "produto": "Placa Mãe  X99 D4H– LGA 2011-V3 NVMe M.2.", "variacao": "", "sku": "", "ean": "0.0", "preco": 290.0, "qtd_sistema": 0, "idx": 499}, {"id": "23494842830.0", "produto": "Placa Mãe Bigtreetech Skr V1.4 Controle 32bits Impressora 3d", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.9, "qtd_sistema": 0, "idx": 500}, {"id": "23294960979.0", "produto": "Placa Mãe Intel X99 Machinist Pr9 Ddr4 Lga 2011-3 V3 E V4.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 1, "idx": 501}, {"id": "58254057139.0", "produto": "Placa Mãe Machinist E5-MR9A Pro para Intel Xeon E5 V3 V4 – LGA2011 DDR4", "variacao": "", "sku": "", "ean": "0.0", "preco": 742.0, "qtd_sistema": 0, "idx": 502}, {"id": "58260477637.0", "produto": "Placa Mãe Machinist X99 Pr9-h C/ Processador Xeon 2670 V3.", "variacao": "", "sku": "", "ean": "0.0", "preco": 530.0, "qtd_sistema": 0, "idx": 503}, {"id": "58254333754.0", "produto": "Placa Mãe Mougol Intel X99 Lga2011-3 Suporte M.2 Nvme Laranja-escuro", "variacao": "", "sku": "", "ean": "0.0", "preco": 397.0, "qtd_sistema": 1, "idx": 504}, {"id": "22694852200.0", "produto": "Placa Mãe X99 Pr8-h Machinist Assist Esport Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 505}, {"id": "58210372562.0", "produto": "Placa Mãe X99-w C/ Process Xeon E5-26.. 8gb Ddr4 + intel xeon", "variacao": "", "sku": "", "ean": "0.0", "preco": 380.0, "qtd_sistema": 0, "idx": 506}, {"id": "58256650111.0", "produto": "Placa Painel Célula Solar Fotovoltaica 6v 200ma 1,2w", "variacao": "", "sku": "", "ean": "0.0", "preco": 35.0, "qtd_sistema": 0, "idx": 507}, {"id": "58260538056.0", "produto": "Placa de Vídeo  Mllse RX 580 4Gb  2048SP GAMING   Amd branca.", "variacao": "", "sku": "", "ean": "0.0", "preco": 290.0, "qtd_sistema": 0, "idx": 508}, {"id": "58261018919.0", "produto": "Placa mãe Machinist  x99 PR9 KIT XEON 2626v3", "variacao": "", "sku": "", "ean": "0.0", "preco": 420.0, "qtd_sistema": 0, "idx": 509}, {"id": "58204636857.0", "produto": "Placa mãe QIYIDA X99 D4 TPM2.0 LGA 2011 3 com slot M.2 Suporte X99 C612chip Memória DDR4 SATA3.0 USB3.0 PCI16X", "variacao": "", "sku": "", "ean": "0.0", "preco": 286.0, "qtd_sistema": 0, "idx": 510}, {"id": "58260366078.0", "produto": "Placa mãe xeon Machinist X99 Pr9 LGA 2013.", "variacao": "", "sku": "", "ean": "0.0", "preco": 230.0, "qtd_sistema": 0, "idx": 511}, {"id": "58255125624.0", "produto": "Placa wifi Fenvi AX210 FV-AXE3000 PCI-E Wireless (Wi-Fi)", "variacao": "", "sku": "", "ean": "0.0", "preco": 130.0, "qtd_sistema": 3, "idx": 512}, {"id": "58253932753.0", "produto": "Pokémon Emerald Version - Game Boy Advance - Repro", "variacao": "", "sku": "", "ean": "0.0", "preco": 142.0, "qtd_sistema": 0, "idx": 513}, {"id": "58253933598.0", "produto": "Pokémon FireRed - Box Jogo (Nintendo Game Boy Advance)", "variacao": "", "sku": "", "ean": "0.0", "preco": 142.0, "qtd_sistema": 1, "idx": 514}, {"id": "58203934538.0", "produto": "Pokémon Leaf Green Version - Game Boy Advance - Repro", "variacao": "", "sku": "", "ean": "0.0", "preco": 144.0, "qtd_sistema": 1, "idx": 515}, {"id": "58253936435.0", "produto": "Pokémon Ruby - Box do Jogo (Nintendo Game Boy Advance)", "variacao": "", "sku": "", "ean": "0.0", "preco": 142.0, "qtd_sistema": 1, "idx": 516}, {"id": "58256658860.0", "produto": "Porta Aparelho Dental Portátil Com Fecho Magnético", "variacao": "", "sku": "", "ean": "0.0", "preco": 125.0, "qtd_sistema": 20, "idx": 517}, {"id": "58260189307.0", "produto": "Portable SSD 4TB TIPO- C NA COR PRETA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 390.0, "qtd_sistema": 0, "idx": 518}, {"id": "58254331511.0", "produto": "Procure Nas Cinzas- Charlie Donlea", "variacao": "", "sku": "", "ean": "0.0", "preco": 29.8, "qtd_sistema": 0, "idx": 519}, {"id": "22594986906.0", "produto": "Produto Estação De Solda E Retrabalho 2x1 750w Jcd 8898.  110volts.", "variacao": "", "sku": "", "ean": "0.0", "preco": 349.99, "qtd_sistema": 0, "idx": 520}, {"id": "58210548239.0", "produto": "Projetor  Display  Holograma  3d  ventilador holográfico.", "variacao": "", "sku": "", "ean": "0.0", "preco": 190.0, "qtd_sistema": 0, "idx": 521}, {"id": "58254540766.0", "produto": "Projetor Magcubic Hy450 4k Android Bluetooth Wifi6 1000 Ansi Branco", "variacao": "", "sku": "", "ean": "0.0", "preco": 882.0, "qtd_sistema": 0, "idx": 522}, {"id": "58207057133.0", "produto": "Projetor Manual Vesvhao A12 Preto 127/220v", "variacao": "", "sku": "", "ean": "0.0", "preco": 560.0, "qtd_sistema": 0, "idx": 523}, {"id": "58209344927.0", "produto": "Protetor Trifásico de Tensão e Corrente - TOMZN 100A.", "variacao": "", "sku": "", "ean": "0.0", "preco": 200.0, "qtd_sistema": 1, "idx": 524}, {"id": "58205076095.0", "produto": "RADIO  RANGER NANO  RADIOMASTER", "variacao": "", "sku": "", "ean": "0.0", "preco": 260.0, "qtd_sistema": 1, "idx": 525}, {"id": "22894847898.0", "produto": "RAQUETE BULLPADEL HACK 03 BEACHT TENNIS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 990.0, "qtd_sistema": 0, "idx": 526}, {"id": "58263022303.0", "produto": "RELÓGIO DIGITAL COM DISPLAY DE TEMPERATURA HORA E DATA, SUPORTE DE PAREDE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 69.0, "qtd_sistema": 1, "idx": 527}, {"id": "58211748099.0", "produto": "RELÓGIO HUAWEI GT 6 MODELO ATM-B19 BLACK. LACRADO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1400.0, "qtd_sistema": 0, "idx": 528}, {"id": "58211879393.0", "produto": "RELÓGIO SMARTWATCH -SAMSUNG GALAXY FIT 3.COR GRAFITE/ LACRADO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 280.0, "qtd_sistema": 0, "idx": 529}, {"id": "58203771246.0", "produto": "REOLINK TRACKMIX WIFI W760", "variacao": "", "sku": "", "ean": "0.0", "preco": 1700.0, "qtd_sistema": 1, "idx": 530}, {"id": "58261581575.0", "produto": "ROTEADOR DE WIFI X1500  Wi-fi Archer AX12.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 0, "idx": 531}, {"id": "58212316166.0", "produto": "ROTEADOR TP-LINK AC1200 MESH  DUAL BAND 4 ANTENAS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 160.0, "qtd_sistema": 0, "idx": 532}, {"id": "58253750207.0", "produto": "Radiofrequencia Facial Led Portatil", "variacao": "", "sku": "", "ean": "0.0", "preco": 69.0, "qtd_sistema": 0, "idx": 533}, {"id": "58205319574.0", "produto": "Ram Ddr4 16gb Machinist", "variacao": "", "sku": "", "ean": "0.0", "preco": 600.0, "qtd_sistema": 0, "idx": 534}, {"id": "23399521328.0", "produto": "Rapoo M400/White, trata-se de um mouse gamer sem fio ultraleve voltado para jogos competitivos FPS e eSports.", "variacao": "", "sku": "", "ean": "0.0", "preco": 109.99, "qtd_sistema": 1, "idx": 535}, {"id": "58253161848.0", "produto": "Raquete Beach Tennis Predator 2022 Com Capa Shark", "variacao": "", "sku": "", "ean": "0.0", "preco": 679.0, "qtd_sistema": 1, "idx": 536}, {"id": "22294842026.0", "produto": "Raquete Beach Tennis Predator 2022 Com Capa Shark Rosa/laranja", "variacao": "", "sku": "", "ean": "0.0", "preco": 297.0, "qtd_sistema": 0, "idx": 537}, {"id": "58254117233.0", "produto": "Raquete De Padel Nox Ml10 Luxury Shotgun 18k 2024", "variacao": "", "sku": "", "ean": "0.0", "preco": 1799.9, "qtd_sistema": 1, "idx": 538}, {"id": "58203594677.0", "produto": "Raquete De Tênis De Praia Gaivota 2023 - Controle De Fibra D", "variacao": "", "sku": "", "ean": "0.0", "preco": 270.0, "qtd_sistema": 0, "idx": 539}, {"id": "58254925884.0", "produto": "Raquete para Beach Tennis", "variacao": "", "sku": "", "ean": "0.0", "preco": 520.0, "qtd_sistema": 0, "idx": 540}, {"id": "22294842382.0", "produto": "Receptor M-vave Wp-10 Retorno De Palco Adicional Avulso 5v Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 87.99, "qtd_sistema": 0, "idx": 541}, {"id": "23294855459.0", "produto": "Reconstruindo Emoções - Obra Mediúnica - 2017", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.6, "qtd_sistema": 1, "idx": 542}, {"id": "23599312423.0", "produto": "Refrigerador Água CPU Teucer 360, Ventilador ARGB 360mm, Espelho Infinito", "variacao": "", "sku": "", "ean": "0.0", "preco": 460.0, "qtd_sistema": 0, "idx": 543}, {"id": "58253911122.0", "produto": "Relógio Smartwatch Zeblaze Btalk 2 Lite", "variacao": "", "sku": "", "ean": "0.0", "preco": 154.0, "qtd_sistema": 0, "idx": 544}, {"id": "58213021507.0", "produto": "Relógio inteligente Zeblaze Stratos 4 com GPS, tela AMOLED de 1,43 polegadas e posicionamento .", "variacao": "", "sku": "", "ean": "", "preco": 239.99, "qtd_sistema": 1, "idx": 545}, {"id": "58213044180.0", "produto": "Repetidor de sinal para celular 850mhz 2g 3g Sem antena branco.", "variacao": "", "sku": "", "ean": "0.0", "preco": 70.0, "qtd_sistema": 1, "idx": 546}, {"id": "58204649896.0", "produto": "Resfriador Líquido (Water Cooler) Thermalright Frozen Infinity 360, ARGB, 360mm, Preto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 464.0, "qtd_sistema": 0, "idx": 547}, {"id": "58204733246.0", "produto": "Resoxy Medical Sinais Vitais Monitor Portátil Recarregável Monitor de Paciente com Tela Sensível Ao Toque ECG RESP NIBP", "variacao": "", "sku": "", "ean": "0.0", "preco": 1900.0, "qtd_sistema": 0, "idx": 548}, {"id": "58255346982.0", "produto": "Rio Antigo: Confissoes De Um Assassino Da Belle Ep, De Anatole Jelihovschi. Editora Rocco, Capa Mole Em Português, 2021", "variacao": "", "sku": "", "ean": "0.0", "preco": 34.9, "qtd_sistema": 1, "idx": 549}, {"id": "22099520313.0", "produto": "Robô Inteligente Limpa Vidros Janelas Espelhos Bivolt Ra2-02", "variacao": "", "sku": "", "ean": "0.0", "preco": 500.0, "qtd_sistema": 1, "idx": 550}, {"id": "58255398292.0", "produto": "Rock Lights Pro: Sistema de Iluminação LED para Caixa de Roda RGB + Rastreamento Rítmico", "variacao": "", "sku": "", "ean": "0.0", "preco": 150.0, "qtd_sistema": 0, "idx": 551}, {"id": "58212835830.0", "produto": "Rodas Beadlock Benedict Harry 2.2\" de 35mm para Carro de Trilha RC 1/10 Axial SCX10", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.99, "qtd_sistema": 1, "idx": 552}, {"id": "58253903433.0", "produto": "Rosto Preto Totalmente Dourado 2520 - Nibosi Mens Elegant COR BLACK", "variacao": "", "sku": "", "ean": "0.0", "preco": 82.0, "qtd_sistema": 0, "idx": 553}, {"id": "58210109348.0", "produto": "Roteador 4G LTE Dispositivo de Ponto de Acesso de Bolso 150 Mbps Hotspot WiFi Móvel.", "variacao": "", "sku": "", "ean": "0.0", "preco": 57.99, "qtd_sistema": 0, "idx": 554}, {"id": "58204100510.0", "produto": "Rádio Baofebg Ht Uv-6 VHF/UHF", "variacao": "", "sku": "", "ean": "0.0", "preco": 245.0, "qtd_sistema": 0, "idx": 555}, {"id": "58259523021.0", "produto": "Rádio walkie talkie  baofeng  vt -C2 profissional 16 canais.", "variacao": "", "sku": "", "ean": "0.0", "preco": 240.0, "qtd_sistema": 1, "idx": 556}, {"id": "58253905747.0", "produto": "Régua Inteligente Meross Smart Wi-Fi: 4 Tomadas + 4 USB, Compatível com Alexa e Google Home", "variacao": "", "sku": "", "ean": "0.0", "preco": 290.0, "qtd_sistema": 1, "idx": 557}, {"id": "58261153140.0", "produto": "SISTEMA DE SEGURANÇA PGST COM WI FI GMS E GPRS TELA TOUTCH PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 1, "idx": 558}, {"id": "58261184176.0", "produto": "SISTEMA SEM FIO LEKATO AIR BRIDGE MO2588 PORTÁTIL 2.4G COM CAIXA DE CARREGAMENTO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 215.0, "qtd_sistema": 1, "idx": 559}, {"id": "58262607734.0", "produto": "SMART SENSOR Monitor De Gás 4 Em 1 Detector Portátil Recarregável H2s O2 CO E LEL Multigás.", "variacao": "", "sku": "", "ean": "0.0", "preco": 149.99, "qtd_sistema": 0, "idx": 560}, {"id": "58261890903.0", "produto": "SMARTWATCH HAYLOU SOLAR PRO BT 5.3 TELA 1.3 POL. BLUETOOTH. COR PRATA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 260.0, "qtd_sistema": 1, "idx": 561}, {"id": "23199464036.0", "produto": "SOLDADOR VICIGO 24V12V SubsA Mesa De Soldagem VICIGO 24V12V Substitui Alça Para Ferramenta", "variacao": "", "sku": "", "ean": "0.0", "preco": 50.0, "qtd_sistema": 0, "idx": 562}, {"id": "58211026605.0", "produto": "SSD 1TB KINGSTON NV3 M.2 2280 NVME PCIE SNV3S/ 1000G.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1300.0, "qtd_sistema": 0, "idx": 563}, {"id": "22394983391.0", "produto": "SSD EAGET 120GB SATA III MODELO S205 ULTRA RÁPIDO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 95.0, "qtd_sistema": 0, "idx": 564}, {"id": "58261019180.0", "produto": "SSD GOLDENFIR  MODELO T650 256GB INTERFACE SATAIII 6GB/s.", "variacao": "BRANCO 256GB", "sku": "SSD GOLDENFIR 256GB BRANCO", "ean": "0.0", "preco": 169.9, "qtd_sistema": 0, "idx": 565}, {"id": "58261019180.0", "produto": "SSD GOLDENFIR  MODELO T650 256GB INTERFACE SATAIII 6GB/s.", "variacao": "PRETO 256GB", "sku": "SSD GOLDENFIR PRETO 256GB", "ean": "0.0", "preco": 169.9, "qtd_sistema": 0, "idx": 566}, {"id": "23499485655.0", "produto": "SSD GOLDENFIR D800 128GB INTERFACE SATA III 6GB/s. PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 95.0, "qtd_sistema": 0, "idx": 567}, {"id": "58254726592.0", "produto": "SSD GOLDENFIR D800-256GB", "variacao": "", "sku": "", "ean": "0.0", "preco": 100.0, "qtd_sistema": 0, "idx": 568}, {"id": "23994939893.0", "produto": "SSD GOLDENFIR SOLIDO SATA III 6GB/S 128GB.", "variacao": "BRANCO", "sku": "BRANCO", "ean": "0.0", "preco": 100.0, "qtd_sistema": 0, "idx": 569}, {"id": "23994939893.0", "produto": "SSD GOLDENFIR SOLIDO SATA III 6GB/S 128GB.", "variacao": "PRETO", "sku": "PRETO", "ean": "0.0", "preco": 100.0, "qtd_sistema": 0, "idx": 570}, {"id": "58261199122.0", "produto": "SSD INTEL DC S3520 SÉRIE 480GB MODELO SSDSC2BB480G7/ SATA  2.5.", "variacao": "", "sku": "", "ean": "0.0", "preco": 399.9, "qtd_sistema": 0, "idx": 571}, {"id": "22095016268.0", "produto": "SSD KINGSTON A400 480 GB SATA 2.5.", "variacao": "", "sku": "", "ean": "0.0", "preco": 499.0, "qtd_sistema": 0, "idx": 572}, {"id": "58203657898.0", "produto": "SSD KingSpec NX Series NVMe M.2: Velocidade Extrema e Performance de 1TB", "variacao": "", "sku": "", "ean": "0.0", "preco": 525.0, "qtd_sistema": 0, "idx": 573}, {"id": "58204740756.0", "produto": "SSD PRIME SATA 2.5 III  SOLID STAKE DISK SSDA 256 GB.", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 0, "idx": 574}, {"id": "58205005075.0", "produto": "SSD SOMNAMBULIST 512 GB/128GB H650.", "variacao": "BRANCO 512GB", "sku": "SSD BRANCO 512GB", "ean": "0.0", "preco": 250.0, "qtd_sistema": 0, "idx": 575}, {"id": "22699475544.0", "produto": "SSD XRAYDISK 256GB/ 480GB/512GB  2.5 SATA III 6GB/s PRETO.", "variacao": "SSD XRAYDISK 256 GB/s", "sku": "SSD XRAYDISK 256 GB/s\n", "ean": "0.0", "preco": 150.0, "qtd_sistema": 0, "idx": 576}, {"id": "22699475544.0", "produto": "SSD XRAYDISK 256GB/ 480GB/512GB  2.5 SATA III 6GB/s PRETO.", "variacao": "SSD XRAYDISK 480GB", "sku": "SSD XRAYDISK 480GB\n", "ean": "0.0", "preco": 250.0, "qtd_sistema": 0, "idx": 577}, {"id": "22699475544.0", "produto": "SSD XRAYDISK 256GB/ 480GB/512GB  2.5 SATA III 6GB/s PRETO.", "variacao": "SSD XRAYDISK 512GB", "sku": "SSD XRAYDISK 480G", "ean": "0.0", "preco": 299.0, "qtd_sistema": 0, "idx": 578}, {"id": "58262158368.0", "produto": "SUPORTE ARTICULADO  PARA COMPUTADOR NB NORTH BAYOU F160.", "variacao": "", "sku": "", "ean": "6943223113260.0", "preco": 130.0, "qtd_sistema": 0, "idx": 579}, {"id": "58253283440.0", "produto": "Sabonete Karité e Flor de Amêndoas ou Carvão Detox Action 3 em 1 - OFERTA VALIDADE JUNHO/2026", "variacao": "Action de Ypê", "sku": "Action de Ypê 1UND", "ean": "7896098908136.0", "preco": 2.75, "qtd_sistema": 0, "idx": 580}, {"id": "58253283440.0", "produto": "Sabonete Karité e Flor de Amêndoas ou Carvão Detox Action 3 em 1 - OFERTA VALIDADE JUNHO/2026", "variacao": "Flor de Ypê Karité e Amêndoas", "sku": "Flor de Ypê 1UND", "ean": "7896098907832.0", "preco": 2.99, "qtd_sistema": 0, "idx": 581}, {"id": "58208110867.0", "produto": "SanDisk 128GB Ultra micro SDXC UHS-I Card 100mbps original,", "variacao": "", "sku": "", "ean": "0.0", "preco": 90.0, "qtd_sistema": 0, "idx": 582}, {"id": "58203327402.0", "produto": "SanDisk 128GB Ultra microSDXC UHS 100 MB/s SDSQUNR-128G-GN6MN", "variacao": "", "sku": "", "ean": "619659185091.0", "preco": 117.0, "qtd_sistema": 0, "idx": 583}, {"id": "22094855092.0", "produto": "SanDisk Cartão UHS I Extreme microSD de 128 GB para vídeo 4K em smartphones, câmeras de ação e drones 190 MB/s", "variacao": "", "sku": "", "ean": "619659188467.0", "preco": 110.0, "qtd_sistema": 0, "idx": 584}, {"id": "58262390072.0", "produto": "Scanner Automotivo Obd2 V519 Diagnóstico De Avarias Do Carro em Português NA COR VERMELHA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 65.99, "qtd_sistema": 0, "idx": 585}, {"id": "23894118345.0", "produto": "Se não fosse você - Colleen Hoover", "variacao": "", "sku": "", "ean": "0.0", "preco": 34.99, "qtd_sistema": 0, "idx": 586}, {"id": "58212134899.0", "produto": "Secador DE CABELO  shark airwrap 5  EM 1 SECAR FAZER CACHOS+ ESCOVA PROFISSIONAL/ 110V.", "variacao": "", "sku": "", "ean": "0.0", "preco": 400.0, "qtd_sistema": 0, "idx": 587}, {"id": "58203733828.0", "produto": "Secador De Cabelo Ukliss 7 Pontas Preto 110", "variacao": "", "sku": "", "ean": "0.0", "preco": 524.9, "qtd_sistema": 0, "idx": 588}, {"id": "58256636548.0", "produto": "Seenda Vertical Mouse Sem Fio Tipo C Recarregável Ergonômico USB e Tipo C Mouse para Laptop PC MacBook Windows Android", "variacao": "", "sku": "", "ean": "0.0", "preco": 100.0, "qtd_sistema": 0, "idx": 589}, {"id": "23294846368.0", "produto": "Shuati Lector De Decibelios De Ruido Pantalla Led Grande De", "variacao": "", "sku": "", "ean": "0.0", "preco": 389.99, "qtd_sistema": 1, "idx": 590}, {"id": "58210730287.0", "produto": "Shure Sistema de microfone sem fio QLXD24/SM58 com microfone vocal portátil SM58.", "variacao": "", "sku": "", "ean": "0.0", "preco": 12000.0, "qtd_sistema": 1, "idx": 591}, {"id": "58254535048.0", "produto": "Sistema De Difusão Por Nebulização Air Machine", "variacao": "", "sku": "", "ean": "0.0", "preco": 395.0, "qtd_sistema": 0, "idx": 592}, {"id": "58203924188.0", "produto": "Sistema de microfone sem fio BOMGE 4 canais conjunto de microfone sem fio com 4 microfones de mão, frequência fixa, long", "variacao": "", "sku": "", "ean": "0.0", "preco": 480.0, "qtd_sistema": 0, "idx": 593}, {"id": "58205403960.0", "produto": "Smart Tracking: Rastreamento Inteligente (A câmera seguSmart Tracking: Rastreamento Inteligente (A câmera segue automati", "variacao": "", "sku": "", "ean": "0.0", "preco": 480.0, "qtd_sistema": 0, "idx": 594}, {"id": "22194979781.0", "produto": "Smartwarch Amazfit Gtr 3 Pro - 46mm, Amoled, Gps - Black.", "variacao": "", "sku": "", "ean": "0.0", "preco": 1100.0, "qtd_sistema": 0, "idx": 595}, {"id": "58254196695.0", "produto": "Smartwatch Haylou Rs4 Plus Bt5.1 Tela 1.78 Pulseira De Trava Preto!", "variacao": "", "sku": "", "ean": "0.0", "preco": 155.99, "qtd_sistema": 0, "idx": 596}, {"id": "58255001628.0", "produto": "Smartwatch I7 Pro Max", "variacao": "", "sku": "", "ean": "0.0", "preco": 100.0, "qtd_sistema": 1, "idx": 597}, {"id": "58255407641.0", "produto": "Sonicake Matribox Ii - Processador De Vários Efeitos Com A E", "variacao": "", "sku": "", "ean": "0.0", "preco": 1389.9, "qtd_sistema": 0, "idx": 598}, {"id": "58259528399.0", "produto": "Spawn Robot Wars 30º Aniversário - McFarlane Toys.", "variacao": "", "sku": "", "ean": "0.0", "preco": 280.0, "qtd_sistema": 1, "idx": 599}, {"id": "58255008711.0", "produto": "Ssd 2242 Kingspec Key B + M 1 Tb M.2 Pcie 3.0 X 2 Wwan", "variacao": "", "sku": "", "ean": "0.0", "preco": 529.9, "qtd_sistema": 0, "idx": 600}, {"id": "58205320379.0", "produto": "Ssd M.2 SATA 512 GB ARMAZENAMENTO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 400.0, "qtd_sistema": 0, "idx": 601}, {"id": "58255133737.0", "produto": "Ssd Nvme M.2 Kingspec Ne-128 128gb Pcie 3.0 Preto E Vermelho.", "variacao": "", "sku": "", "ean": "0.0", "preco": 160.0, "qtd_sistema": 0, "idx": 602}, {"id": "58254988356.0", "produto": "Ssd interno Western digital BLUE De 1Tb Sata", "variacao": "", "sku": "", "ean": "0.0", "preco": 650.0, "qtd_sistema": 0, "idx": 603}, {"id": "58212107940.0", "produto": "Star Wars Darth Vader  DE PELUCIA COM SONS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 139.99, "qtd_sistema": 1, "idx": 604}, {"id": "58254915282.0", "produto": "Streaming S 200x 32gb 256gb 10.100mah 5g Doogee Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 2499.9, "qtd_sistema": 0, "idx": 605}, {"id": "58254394830.0", "produto": "Suporte Cooler Carregador 3 Usb Compatível Playstation 4 Pro", "variacao": "", "sku": "", "ean": "0.0", "preco": 107.9, "qtd_sistema": 0, "idx": 606}, {"id": "58256637783.0", "produto": "Switch Keep Link 8 Portas 2.5g Rj45 Uplink.", "variacao": "", "sku": "", "ean": "0.0", "preco": 700.0, "qtd_sistema": 0, "idx": 607}, {"id": "58254905370.0", "produto": "T-Wolf T20 Rainbow Backlit Gaming Keyboard", "variacao": "", "sku": "", "ean": "0.0", "preco": 99.9, "qtd_sistema": 1, "idx": 608}, {"id": "58212589617.0", "produto": "TECLADO AJAZZ AF82 TECLADO JOGOS, RGB TRI MODE, 75%LAYOUT/ COR BRACO COM LARANJA E CINZA/ 82 TECLAS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 1, "idx": 609}, {"id": "58212613108.0", "produto": "TECLADO AJAZZ AF98 MEMBRANA COR PRETO/RGB.", "variacao": "", "sku": "", "ean": "0.0", "preco": 149.99, "qtd_sistema": 1, "idx": 610}, {"id": "23794818754.0", "produto": "TECLADO AULA F65", "variacao": "", "sku": "", "ean": "0.0", "preco": 399.9, "qtd_sistema": 0, "idx": 611}, {"id": "22299520453.0", "produto": "TECLADO AULA WIN60he PRO 60% MECANICO COR ROSA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 0, "idx": 612}, {"id": "58211230821.0", "produto": "TECLADO AULA WIN68 MAX MAGNÉTICO PINK SWITCH ILUMINAÇÃO RGB.", "variacao": "", "sku": "", "ean": "0.0", "preco": 359.9, "qtd_sistema": 0, "idx": 613}, {"id": "58261221346.0", "produto": "TECLADO COM FIO AJAZZ Ak820 SWITCH WHITE MECÂNICO.", "variacao": "CINZA", "sku": "AJAZZ CINZA", "ean": "0.0", "preco": 199.0, "qtd_sistema": 0, "idx": 614}, {"id": "58261221346.0", "produto": "TECLADO COM FIO AJAZZ Ak820 SWITCH WHITE MECÂNICO.", "variacao": "PRETO", "sku": "AJAZZ PRETO", "ean": "0.0", "preco": 199.0, "qtd_sistema": 0, "idx": 615}, {"id": "22794848010.0", "produto": "TECLADO FREE WOLF 96KEY TRI MODE.", "variacao": "PRETO/LARANJA", "sku": "PRETO/LARANJA", "ean": "0.0", "preco": 149.0, "qtd_sistema": 1, "idx": 616}, {"id": "22794848010.0", "produto": "TECLADO FREE WOLF 96KEY TRI MODE.", "variacao": "PRETO/MESCLADO", "sku": "PRETO/ MESCLADO", "ean": "0.0", "preco": 149.0, "qtd_sistema": 0, "idx": 617}, {"id": "58212505841.0", "produto": "TECLADO FREEWOLF F75 MECÂNICO, TRI-MODE 2.4GHZ SWITCH ROXO/ TECLADO PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 229.99, "qtd_sistema": 0, "idx": 618}, {"id": "58261312344.0", "produto": "TECLADO GAMER AULA MAGNÉTICO WIN 60HE PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 299.0, "qtd_sistema": 0, "idx": 619}, {"id": "23994958611.0", "produto": "TECLADO GAMER AULA MECÂNICO TRI MODE F75 AZUL MARINHO/ PRETO.", "variacao": "AZUL MARINHO", "sku": "F75AZUL MARINHO", "ean": "0.0", "preco": 349.0, "qtd_sistema": 0, "idx": 620}, {"id": "23994958611.0", "produto": "TECLADO GAMER AULA MECÂNICO TRI MODE F75 AZUL MARINHO/ PRETO.", "variacao": "PRETO", "sku": "F75PRETO", "ean": "0.0", "preco": 349.0, "qtd_sistema": 0, "idx": 621}, {"id": "58254802606.0", "produto": "TECLADO GAMER FREEWOLF TRI MODE 100 KEY.", "variacao": "", "sku": "", "ean": "0.0", "preco": 200.0, "qtd_sistema": 1, "idx": 622}, {"id": "23194994978.0", "produto": "TECLADO GAMER MECÂNICO TRI MODE AJAZZ AK820 PRO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 0, "idx": 623}, {"id": "58211465789.0", "produto": "TECLADO GAMER MkA610 MECÂNICO SWITCH  RED RGB.", "variacao": "", "sku": "", "ean": "0.0", "preco": 149.99, "qtd_sistema": 0, "idx": 624}, {"id": "22894887719.0", "produto": "TECLADO GAMER TEAMWOLF RAVEN68 MECÂNICO RGB USB PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 320.0, "qtd_sistema": 2, "idx": 625}, {"id": "22299550077.0", "produto": "TECLADO GAMER XUNFOX K82 COM ILUMINAÇÃO CABO USB.", "variacao": "", "sku": "", "ean": "0.0", "preco": 59.9, "qtd_sistema": 0, "idx": 626}, {"id": "58254791353.0", "produto": "TECLADO IROK MAGNÉTICO IRON ND63 PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 299.99, "qtd_sistema": 1, "idx": 627}, {"id": "58204423409.0", "produto": "TECLADO K500 KEYBOARD PRETO E LARANJA.", "variacao": "", "sku": "", "ean": "6975971291624.0", "preco": 115.0, "qtd_sistema": 0, "idx": 628}, {"id": "58212618121.0", "produto": "TECLADO K61PRO USB MINI MECÂNICO GAMER SWITCH MARROM/ TECLADO COR PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 205.0, "qtd_sistema": 1, "idx": 629}, {"id": "58212588105.0", "produto": "TECLADO MAGNÉTICO ATTACK SHARK X68 HE 8000HZ/BRANCO/ SWITCH BRANCO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 289.0, "qtd_sistema": 0, "idx": 630}, {"id": "23394969097.0", "produto": "TECLADO MECÂNICO COM FIO HXSJ V800 TECLA RGB COR PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 139.0, "qtd_sistema": 1, "idx": 631}, {"id": "58262323403.0", "produto": "TECLADO MECÂNICO GAMER MACHENIKE K500- B84 SEM FIO TRI MODE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 350.0, "qtd_sistema": 1, "idx": 632}, {"id": "58204127121.0", "produto": "TECLADO MECÂNICO LANGTU GK102.", "variacao": "", "sku": "", "ean": "0.0", "preco": 134.99, "qtd_sistema": 0, "idx": 633}, {"id": "23495000518.0", "produto": "TECLADO MECÂNICO MACHENIKE K500A B84 COM FIO TKL SWITCH RED.", "variacao": "", "sku": "", "ean": "0.0", "preco": 189.99, "qtd_sistema": 2, "idx": 634}, {"id": "58262582080.0", "produto": "TECLADO MECÂNICO VEEKOS K75 RGB CUSTOMIZÁVEL/ VERMELHO/SWITCH ROSA.", "variacao": "", "sku": "", "ean": "0.0", "preco": 399.0, "qtd_sistema": 1, "idx": 635}, {"id": "22999501260.0", "produto": "TECLADO MECÂNICO/MAGNÉTICO MONSGEEK FUN60 PRO 8000HZ/TECLADO PRETO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 390.0, "qtd_sistema": 2, "idx": 636}, {"id": "58262767428.0", "produto": "TEOLOGIA CONCISA - CULTURA CRISTÃ 3ª Edição- James J. Packer- capa dura.", "variacao": "", "sku": "", "ean": "0.0", "preco": 62.0, "qtd_sistema": 1, "idx": 637}, {"id": "22494807583.0", "produto": "TEUCER JM-1 Computer Case Fan ARGB Mirror Cycle Light Effect 120mm 4Pin PWM PC Cooling Fan Low Noise Water Cooling Venti", "variacao": "", "sku": "", "ean": "0.0", "preco": 174.0, "qtd_sistema": 0, "idx": 638}, {"id": "58209420825.0", "produto": "TRANSFORMERS BUMBLEBEE BRINQUEDO PARA CRIANÇAS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 153.99, "qtd_sistema": 0, "idx": 639}, {"id": "58259421926.0", "produto": "TS21D MULTIMETRICO DE ALCACE ALTOMATICO, TESTADOR DE ANTI-QUEDA COM NVC.", "variacao": "", "sku": "", "ean": "0.0", "preco": 89.99, "qtd_sistema": 0, "idx": 640}, {"id": "23799310722.0", "produto": "Tablet AH08 Infantil Milli 8Gb + 256Gb Kids 100CEM 256gb de memória e 8 de ram", "variacao": "", "sku": "", "ean": "0.0", "preco": 326.0, "qtd_sistema": 0, "idx": 641}, {"id": "58261339914.0", "produto": "Tablet TAB 8 Plus Pritom  – Tela 8\" IPS, 4GB RAM + 64GB ROM, Bateria 5000mAh, Câmeras 2MP/8MP.", "variacao": "", "sku": "", "ean": "0.0", "preco": 770.0, "qtd_sistema": 1, "idx": 642}, {"id": "58256715011.0", "produto": "Tablete, 10.1 inch, 4GB RAM, 64GB", "variacao": "", "sku": "", "ean": "0.0", "preco": 895.0, "qtd_sistema": 1, "idx": 643}, {"id": "58201683379.0", "produto": "Tabletes 4 em 1 Cif Para Máquina de Lavar Louças 315g - 18 Tabletes", "variacao": "1 Unidade", "sku": "18 tabletes", "ean": "8720181040252.0", "preco": 32.5, "qtd_sistema": 0, "idx": 644}, {"id": "58201683379.0", "produto": "Tabletes 4 em 1 Cif Para Máquina de Lavar Louças 315g - 18 Tabletes", "variacao": "2 Unidades", "sku": "36 tabletes", "ean": "8720181040252.0", "preco": 64.9, "qtd_sistema": 0, "idx": 645}, {"id": "58201683379.0", "produto": "Tabletes 4 em 1 Cif Para Máquina de Lavar Louças 315g - 18 Tabletes", "variacao": "4 Unidades", "sku": "72 tabletes", "ean": "8720181040252.0", "preco": 124.9, "qtd_sistema": 0, "idx": 646}, {"id": "58254043752.0", "produto": "Teclado Ajazz x Nanocodex ak 680 65% red switch hot swap roxo perfeito", "variacao": "", "sku": "", "ean": "6976412981142.0", "preco": 118.0, "qtd_sistema": 0, "idx": 647}, {"id": "58254396516.0", "produto": "Teclado Attack Shark X68he Magnético  Preto.", "variacao": "", "sku": "", "ean": "0.0", "preco": 262.0, "qtd_sistema": 0, "idx": 648}, {"id": "58255413472.0", "produto": "Teclado Dark Flash Gd68 Gamer Sem Fio Jasmine Color.", "variacao": "", "sku": "", "ean": "0.0", "preco": 279.0, "qtd_sistema": 1, "idx": 649}, {"id": "58203587969.0", "produto": "Teclado Gamer K500-B61 Compacto 60% RGB", "variacao": "", "sku": "", "ean": "0.0", "preco": 195.0, "qtd_sistema": 0, "idx": 650}, {"id": "58211584282.0", "produto": "Teclado Gamer Logitech G213 Prodigy RGB LIGHTSYNC ABNT2 Resistente à Água.", "variacao": "", "sku": "", "ean": "0.0", "preco": 289.99, "qtd_sistema": 0, "idx": 651}, {"id": "58253594399.0", "produto": "Teclado Gamer Luz Rgb - Hayom Tc3205", "variacao": "", "sku": "", "ean": "7899095442788.0", "preco": 47.9, "qtd_sistema": 0, "idx": 652}, {"id": "58204483981.0", "produto": "Teclado Gamer Mecânico Aula F99 Pro 96% RGB Vector Switch - Thunder Black (Inglês)", "variacao": "", "sku": "", "ean": "0.0", "preco": 400.0, "qtd_sistema": 0, "idx": 653}, {"id": "58204798300.0", "produto": "Teclado Gamer Mecânico Machenike K500A-B84", "variacao": "", "sku": "", "ean": "6975971291624.0", "preco": 375.9, "qtd_sistema": 2, "idx": 654}, {"id": "58254078028.0", "produto": "Teclado Gamer Semi-Mecânico Magegee TS91 RGB 60% Compacto Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 105.99, "qtd_sistema": 1, "idx": 655}, {"id": "22794822573.0", "produto": "Teclado Gamer Usb Hayom Rgb Abnt2 Preto", "variacao": "", "sku": "", "ean": "7899095442771.0", "preco": 357.0, "qtd_sistema": 0, "idx": 656}, {"id": "58254897263.0", "produto": "Teclado Magnético Ak820 Max", "variacao": "", "sku": "", "ean": "0.0", "preco": 359.9, "qtd_sistema": 0, "idx": 657}, {"id": "58204909211.0", "produto": "Teclado Magnético Akko Monsgeek Fun60", "variacao": "", "sku": "", "ean": "0.0", "preco": 299.99, "qtd_sistema": 0, "idx": 658}, {"id": "58204370076.0", "produto": "Teclado Magnético Akko Monsgeek Fun60", "variacao": "", "sku": "", "ean": "0.0", "preco": 490.0, "qtd_sistema": 0, "idx": 659}, {"id": "58204424793.0", "produto": "Teclado Magnético Aula Hero68he Rapid Trigger 0.01mm 8000hz Rgb Hall Efect Preto Idioma Inglês Us", "variacao": "", "sku": "", "ean": "0.0", "preco": 495.0, "qtd_sistema": 0, "idx": 660}, {"id": "58203584358.0", "produto": "Teclado Magnético Aula Win60 He Max Rgb 8000hz 0.4mm Gamer", "variacao": "", "sku": "", "ean": "0.0", "preco": 494.0, "qtd_sistema": 0, "idx": 661}, {"id": "58254434392.0", "produto": "Teclado Mecánico De Junta Epomaker Th80-x, Teclado De Juego", "variacao": "", "sku": "", "ean": "0.0", "preco": 349.9, "qtd_sistema": 0, "idx": 662}, {"id": "22294862295.0", "produto": "Teclado Mecânico Aula F75", "variacao": "", "sku": "", "ean": "0.0", "preco": 537.8, "qtd_sistema": 0, "idx": 663}, {"id": "23199342961.0", "produto": "Teclado Mecânico Gamer Iluminado Teclado Mecânico Fio", "variacao": "", "sku": "", "ean": "0.0", "preco": 72.0, "qtd_sistema": 0, "idx": 664}, {"id": "58255425932.0", "produto": "Teclado Mecânico Gamer Machenike K500-B61, Switch Huano Brown, ABNT, Branco - K500-B61BBR", "variacao": "", "sku": "", "ean": "0.0", "preco": 279.9, "qtd_sistema": 0, "idx": 665}, {"id": "58254793364.0", "produto": "Teclado Mecânico Machenike K500-B61", "variacao": "", "sku": "", "ean": "0.0", "preco": 335.99, "qtd_sistema": 0, "idx": 666}, {"id": "23199334739.0", "produto": "Teclado Mecânico Magnético Preto Aula Win60 He 8000khz Preto Inglês", "variacao": "", "sku": "", "ean": "6948391205373.0", "preco": 294.0, "qtd_sistema": 0, "idx": 667}, {"id": "58254335799.0", "produto": "Teclado Mecânico Mechanical Keyboard K68 Branco - Switch Azul", "variacao": "", "sku": "", "ean": "0.0", "preco": 99.9, "qtd_sistema": 0, "idx": 668}, {"id": "58254408973.0", "produto": "Teclado Mecânico Rgb Ajazz Ak820 Branco Qwerty Conexão Usb", "variacao": "", "sku": "", "ean": "6976412980145.0", "preco": 380.0, "qtd_sistema": 0, "idx": 669}, {"id": "22499379753.0", "produto": "Teclado Mecânico Rgb De 61 Teclas", "variacao": "", "sku": "", "ean": "0.0", "preco": 190.0, "qtd_sistema": 0, "idx": 670}, {"id": "58204405044.0", "produto": "Teclado Mecânico Womier S-k80 Com Fio E Display tela Oled Rgb", "variacao": "", "sku": "", "ean": "0.0", "preco": 445.9, "qtd_sistema": 0, "idx": 671}, {"id": "58204405581.0", "produto": "Teclado Para Jogos Rgb Com Fio Aula F3061 De 61 Teclas", "variacao": "", "sku": "", "ean": "0.0", "preco": 109.9, "qtd_sistema": 0, "idx": 672}, {"id": "58262348177.0", "produto": "Teclado Win 60he Swift Branco Gamer – Compacto e Rápido COM FIO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 199.99, "qtd_sistema": 0, "idx": 673}, {"id": "58260267935.0", "produto": "Teclado com capa preta protetora NA COR AZUL MARINHO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 140.0, "qtd_sistema": 0, "idx": 674}, {"id": "58204125995.0", "produto": "Teclado gamer rgb sem fio 87 KEY FREEWOLF", "variacao": "", "sku": "", "ean": "0.0", "preco": 169.9, "qtd_sistema": 0, "idx": 675}, {"id": "58204821854.0", "produto": "Teclado madlion 60he Mecanico magnetico", "variacao": "", "sku": "", "ean": "6977700930378.0", "preco": 580.9, "qtd_sistema": 0, "idx": 676}, {"id": "58254417275.0", "produto": "Teclado mecânico AULA F87Pro 2.4g/Usb/Bluetooth Tri Mode sem fio 87 teclas 5 camadas de enchimento de silenciamento", "variacao": "", "sku": "", "ean": "0.0", "preco": 309.0, "qtd_sistema": 0, "idx": 677}, {"id": "58254780579.0", "produto": "Teclado mecânico sem fio EWEADN GS75, combinação de beleza e desempenho.", "variacao": "", "sku": "", "ean": "0.0", "preco": 343.0, "qtd_sistema": 0, "idx": 678}, {"id": "22194875749.0", "produto": "Teclados Mecânicos Para Jogos De Pc Teclado Mecânico Retroil", "variacao": "", "sku": "", "ean": "0.0", "preco": 225.9, "qtd_sistema": 0, "idx": 679}, {"id": "58205485805.0", "produto": "Tela Display para Samsung A54 OLED Com Aro", "variacao": "", "sku": "", "ean": "0.0", "preco": 229.9, "qtd_sistema": 0, "idx": 680}, {"id": "58205475340.0", "produto": "Tela Frontal Display Galaxy A11 Com Aro", "variacao": "", "sku": "", "ean": "0.0", "preco": 69.26, "qtd_sistema": 0, "idx": 681}, {"id": "58205474280.0", "produto": "Tela Frontal Display Touch Samsung Galaxy A06 Original Com Aro", "variacao": "", "sku": "", "ean": "0.0", "preco": 104.6, "qtd_sistema": 0, "idx": 682}, {"id": "58255471853.0", "produto": "Tela Frontal Touch Display Moto E6 Plus C/Aro", "variacao": "", "sku": "", "ean": "0.0", "preco": 70.5, "qtd_sistema": 0, "idx": 683}, {"id": "58205477423.0", "produto": "Tela Touch Display Frontal Lcd A21s ORIGINAL", "variacao": "", "sku": "", "ean": "0.0", "preco": 89.8, "qtd_sistema": 0, "idx": 684}, {"id": "58204484941.0", "produto": "Teleprompter Universal Ulanzi Rt02 Para Câmera, Telefone", "variacao": "", "sku": "", "ean": "0.0", "preco": 319.0, "qtd_sistema": 0, "idx": 685}, {"id": "58210225005.0", "produto": "Teleprompter para Dispositivos Móveis e Câmeras Reflex (DSLR) AMBITFUL.", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 0, "idx": 686}, {"id": "58253815922.0", "produto": "Telescópio Astronômico F30070m 70mm Tripé F300 70m Ultra Cinza", "variacao": "", "sku": "", "ean": "", "preco": 197.0, "qtd_sistema": 0, "idx": 687}, {"id": "58262111517.0", "produto": "Termocirculador Sous Vide TSV20 220V – Precisão e Qualidade R Baião.", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 1, "idx": 688}, {"id": "22399460121.0", "produto": "Testador De Bateria KONNWEI Universal Testador De Resistência De Bateria De Carro 12v", "variacao": "", "sku": "", "ean": "0.0", "preco": 153.0, "qtd_sistema": 0, "idx": 689}, {"id": "22999524704.0", "produto": "Testador de desligamento de temperatura de multimetros RMS com temperatura.", "variacao": "", "sku": "", "ean": "0.0", "preco": 220.87, "qtd_sistema": 1, "idx": 690}, {"id": "58253231146.0", "produto": "Teste Bafômetro Eletrônico Verificador Álcool Digital", "variacao": "", "sku": "", "ean": "0.0", "preco": 430.0, "qtd_sistema": 3, "idx": 691}, {"id": "23994837840.0", "produto": "Thermalright Peerless Assassin 120se Am5/am4/lga1700/lga1155", "variacao": "", "sku": "", "ean": "0.0", "preco": 355.9, "qtd_sistema": 0, "idx": 692}, {"id": "58205461644.0", "produto": "Transpeed 8k Ultra Hd Conversor Smartv Box 4g Ram Android 12 Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 140.0, "qtd_sistema": 0, "idx": 693}, {"id": "58259013772.0", "produto": "Tripé Porta Extensômetro CBR Semicircular Suporte Estabilizador Em Aço Com Ajuste Micrométrico", "variacao": "", "sku": "", "ean": "0.0", "preco": 169.9, "qtd_sistema": 0, "idx": 694}, {"id": "58260219584.0", "produto": "Triunfo de Sharpe  autor Bernard Cornwelll.", "variacao": "", "sku": "", "ean": "0.0", "preco": 29.99, "qtd_sistema": 0, "idx": 695}, {"id": "23494779116.0", "produto": "Trono De Vidro (vol. 2 Trono De Vidro - Edição Especial), De Sarah J. Maas. Editora Galera, Capa Dura Em Português", "variacao": "", "sku": "", "ean": "0.0", "preco": 83.9, "qtd_sistema": 0, "idx": 696}, {"id": "58254434179.0", "produto": "Ulanzi D200 U-studio Macro Teclado Controlador De Stream Preto Inglês Us", "variacao": "", "sku": "", "ean": "0.0", "preco": 333.9, "qtd_sistema": 0, "idx": 697}, {"id": "58203330217.0", "produto": "Um Velocímetro Sem Fio Gps Para Bicicleta De Estrada Mtb .dz", "variacao": "", "sku": "", "ean": "0.0", "preco": 75.0, "qtd_sistema": 0, "idx": 698}, {"id": "58205357624.0", "produto": "Um fogo na carne (Vol. 3 Carne e Fogo)", "variacao": "", "sku": "", "ean": "0.0", "preco": 75.4, "qtd_sistema": 0, "idx": 699}, {"id": "58254331818.0", "produto": "Uma mulher na escuridão", "variacao": "", "sku": "", "ean": "0.0", "preco": 23.9, "qtd_sistema": 0, "idx": 700}, {"id": "58258117285.0", "produto": "Unidade de Estado Sólido Interna Supherheer 128GB SSD 2.5'' SATA III.", "variacao": "", "sku": "", "ean": "0.0", "preco": 90.0, "qtd_sistema": 0, "idx": 701}, {"id": "58203662563.0", "produto": "Upgrade de Memória Notebook Samsung 8GB DDR5  - Alta Performance", "variacao": "", "sku": "", "ean": "0.0", "preco": 270.0, "qtd_sistema": 0, "idx": 702}, {"id": "58261123163.0", "produto": "VENTOINHA UF-9 PRISM 4 PRO, 9CM COR BRANCO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 35.99, "qtd_sistema": 3, "idx": 703}, {"id": "23395017009.0", "produto": "VIDEO GAME PORTATIL COMPATIVEL CONSOL De Jogos Portáteis  Source R36S Console Videogame NA COR PRETO", "variacao": "", "sku": "", "ean": "0.0", "preco": 109.99, "qtd_sistema": 0, "idx": 704}, {"id": "58253280662.0", "produto": "Varal De Chão de Roupa 3 Andares  Dobrável Portátil com Suporte para Cabides Cores Azul  ou Rosa.", "variacao": "AZUL", "sku": "VARAL AZUL", "ean": "6948367296169.0", "preco": 95.99, "qtd_sistema": 281, "idx": 705}, {"id": "58253280662.0", "produto": "Varal De Chão de Roupa 3 Andares  Dobrável Portátil com Suporte para Cabides Cores Azul  ou Rosa.", "variacao": "ROSA", "sku": "VARAL ROSA", "ean": "7899790941739.0", "preco": 99.99, "qtd_sistema": 0, "idx": 706}, {"id": "23899330493.0", "produto": "Ventilador De Cpu Thermalright Tl-b8w Ventilador De Caja 1", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 1, "idx": 707}, {"id": "58254076025.0", "produto": "Ventilador de Teto LED 52cm 6 Pás com Controle Remoto Soquete E27", "variacao": "", "sku": "", "ean": "0.0", "preco": 76.0, "qtd_sistema": 0, "idx": 708}, {"id": "58254997002.0", "produto": "Ventoinha de Gabinete Airl25 [CHASSIS FAN]", "variacao": "", "sku": "", "ean": "0.0", "preco": 45.0, "qtd_sistema": 1, "idx": 709}, {"id": "23599344386.0", "produto": "Ventoinha de Resfriamento ARGB Inversa Preta ASI2R", "variacao": "", "sku": "", "ean": "0.0", "preco": 80.0, "qtd_sistema": 0, "idx": 710}, {"id": "58254050375.0", "produto": "Ventosa Elétrica Sucção para Azulejos de Parede e Piso Sem Fio Profissional 600w", "variacao": "", "sku": "", "ean": "0.0", "preco": 310.0, "qtd_sistema": 0, "idx": 711}, {"id": "58211218825.0", "produto": "WORX WU130X 12V Chave De Fenda Elétrica Sem Fio Broca Motor Escova 40Nm Para Metalurgia Doméstica.", "variacao": "", "sku": "", "ean": "0.0", "preco": 799.99, "qtd_sistema": 1, "idx": 712}, {"id": "58210667808.0", "produto": "Walkie rock RT86/RT86 RETEVIS.", "variacao": "", "sku": "", "ean": "0.0", "preco": 300.0, "qtd_sistema": 2, "idx": 713}, {"id": "58213023632.0", "produto": "Webcam Para computadores Vitade 4k Com Enquadramento Ai, Zoom De 10x, 30 Fps P", "variacao": "", "sku": "", "ean": "0.0", "preco": 210.0, "qtd_sistema": 1, "idx": 714}, {"id": "58254903833.0", "produto": "Wireless Tri-Mode Keyboard Baseus K01B (Gray)", "variacao": "", "sku": "", "ean": "0.0", "preco": 179.99, "qtd_sistema": 0, "idx": 715}, {"id": "58210976085.0", "produto": "XrayDisk sólido State Drive M.2 Nvme 1Tb Pro.", "variacao": "NORMAL", "sku": "XrayDisk sólido State Drive M.2 Nvme 1Tb.", "ean": "0.0", "preco": 600.0, "qtd_sistema": 0, "idx": 716}, {"id": "58210976085.0", "produto": "XrayDisk sólido State Drive M.2 Nvme 1Tb Pro.", "variacao": "PRO", "sku": "XrayDisk sólido State Drive M.2 Nvme 1Tb Pro.", "ean": "0.0", "preco": 700.0, "qtd_sistema": 0, "idx": 717}, {"id": "58204735378.0", "produto": "YLR/C S116 MAX WiFi FPV com HD ESC Duas câmeras 360° Evitação de obstáculos", "variacao": "", "sku": "", "ean": "0.0", "preco": 200.0, "qtd_sistema": 0, "idx": 718}, {"id": "58253932152.0", "produto": "Zs Rádio Marítimo Icom M25 Portátil Vhf Flutuante 5w Náutico", "variacao": "", "sku": "", "ean": "0.0", "preco": 670.0, "qtd_sistema": 0, "idx": 719}, {"id": "58204484421.0", "produto": "Zyyini Capa para teclado para tablet, teclado Bluetooth com tampa quadrada de 10 polegadas, capa para teclados sem fio.", "variacao": "", "sku": "", "ean": "0.0", "preco": 110.0, "qtd_sistema": 1, "idx": 720}, {"id": "23794842980.0", "produto": "bebé reborner", "variacao": "", "sku": "", "ean": "0.0", "preco": 129.99, "qtd_sistema": 0, "idx": 721}, {"id": "58254194345.0", "produto": "caixa  Winder Movimentadora De Relógio Automatico preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 445.0, "qtd_sistema": 0, "idx": 722}, {"id": "23995042098.0", "produto": "câmera veicular (dash cam / DVR) com funções de gravação em loop, visão noturna.", "variacao": "", "sku": "", "ean": "0.0", "preco": 101.99, "qtd_sistema": 1, "idx": 723}, {"id": "58209433566.0", "produto": "imulação volante led interruptor ocupado placa aprendizagem condução.", "variacao": "", "sku": "", "ean": "0.0", "preco": 153.99, "qtd_sistema": 0, "idx": 724}, {"id": "58261621805.0", "produto": "jogo imagem desenhe rápido e passe a palavra  completo para todas idades!", "variacao": "", "sku": "", "ean": "0.0", "preco": 59.99, "qtd_sistema": 0, "idx": 725}, {"id": "23394991125.0", "produto": "kIT 3 FANS ARG REVERSE 120MM REVERSE MX120- JUMPEAK UMPEAK MX120, FAN 120MM DE ALTA PERFORMACE.", "variacao": "", "sku": "", "ean": "0.0", "preco": 130.0, "qtd_sistema": 1, "idx": 726}, {"id": "23499450587.0", "produto": "lego 42141 mclaren formula 1 com 1.432 pç.", "variacao": "", "sku": "", "ean": "", "preco": 650.0, "qtd_sistema": 1, "idx": 727}, {"id": "58259416562.0", "produto": "o Apple CarPlay Sem Fio no seu Toyota.", "variacao": "", "sku": "", "ean": "", "preco": 400.0, "qtd_sistema": 1, "idx": 728}, {"id": "58261138914.0", "produto": "o livro a Bruxa Psíquica segredos para se tornar uma Bruxa psiquica.", "variacao": "", "sku": "", "ean": "0.0", "preco": 49.99, "qtd_sistema": 0, "idx": 729}, {"id": "58210551101.0", "produto": "pandora DX9800 jogos + jogos 3d Placa Fliperama Jamma.", "variacao": "", "sku": "", "ean": "0.0", "preco": 480.0, "qtd_sistema": 0, "idx": 730}, {"id": "22899469400.0", "produto": "processador: Intel Xeon E5-2640 v3 Intel Xeon E5-2650 v4  Intel Xeon E5-2680 v4 Intel Xeon E5-2630v4", "variacao": "Intel Xeon E5-2630 v4", "sku": "Intel Xeon E5-2630 v4\n", "ean": "0.0", "preco": 39.99, "qtd_sistema": 0, "idx": 731}, {"id": "22899469400.0", "produto": "processador: Intel Xeon E5-2640 v3 Intel Xeon E5-2650 v4  Intel Xeon E5-2680 v4 Intel Xeon E5-2630v4", "variacao": "Intel Xeon E5-2640 v3", "sku": "Intel Xeon E5-2640 v3\n", "ean": "0.0", "preco": 44.99, "qtd_sistema": 0, "idx": 732}, {"id": "22899469400.0", "produto": "processador: Intel Xeon E5-2640 v3 Intel Xeon E5-2650 v4  Intel Xeon E5-2680 v4 Intel Xeon E5-2630v4", "variacao": "Intel Xeon E5-2650 v4", "sku": "Intel Xeon E5-2650 v4\n", "ean": "0.0", "preco": 99.99, "qtd_sistema": 1, "idx": 733}, {"id": "22899469400.0", "produto": "processador: Intel Xeon E5-2640 v3 Intel Xeon E5-2650 v4  Intel Xeon E5-2680 v4 Intel Xeon E5-2630v4", "variacao": "Intel Xeon E5-2680 v4", "sku": "Intel Xeon E5-2680 v4\n", "ean": "0.0", "preco": 105.99, "qtd_sistema": 0, "idx": 734}, {"id": "58203957574.0", "produto": "rojetor Magcubic Hy350 + Tripé Usado Prateado", "variacao": "", "sku": "", "ean": "0.0", "preco": 550.0, "qtd_sistema": 0, "idx": 735}, {"id": "58203822625.0", "produto": "soldador de peças Speaker Pro 2 Preto", "variacao": "", "sku": "", "ean": "0.0", "preco": 351.0, "qtd_sistema": 0, "idx": 736}, {"id": "58255056490.0", "produto": "soundcore Space One da Anker, Fone de Ouvido Bluetooth 5.3 com ANC adaptivo, Headphone Gamer, Over-Ear, 55h", "variacao": "", "sku": "", "ean": "0.0", "preco": 650.0, "qtd_sistema": 0, "idx": 737}, {"id": "58253852244.0", "produto": "stação de Resfriamento OIVO PS5 PRO/Slim com Carregador Duplo de Controles, 3 Portas USB e Suporte para Headset", "variacao": "", "sku": "", "ean": "0.0", "preco": 120.0, "qtd_sistema": 0, "idx": 738}, {"id": "58254625164.0", "produto": "t de microfone para jogos FIFINE USB/XLR com entrada para fone de ouvido/RGB/braço de lança, NA COR PRETO", "variacao": "", "sku": "", "ean": "0.0", "preco": 338.0, "qtd_sistema": 0, "idx": 739}, {"id": "22999335125.0", "produto": "teclado Gamer de Efeito Hall (tecnologia que usa sensores magnéticos em vez de contatos físicos).", "variacao": "", "sku": "", "ean": "0.0", "preco": 410.0, "qtd_sistema": 0, "idx": 740}, {"id": "58205419636.0", "produto": "teclado Royal Kludge RK61-key", "variacao": "", "sku": "", "ean": "0.0", "preco": 345.0, "qtd_sistema": 0, "idx": 741}, {"id": "58255413209.0", "produto": "teclado mecânico da marca Meletrix", "variacao": "", "sku": "", "ean": "0.0", "preco": 389.99, "qtd_sistema": 0, "idx": 742}, {"id": "58204929163.0", "produto": "Óculos De Câmera Smart 720p Ai Photo Recognition 5.3 Música", "variacao": "", "sku": "", "ean": "0.0", "preco": 345.9, "qtd_sistema": 0, "idx": 743}, {"id": "58262154603.0", "produto": "Óculos Smart Gravador Vídeo Fotos Áudio E Bluetooth XK ONE PRO.", "variacao": "", "sku": "", "ean": "0.0", "preco": 150.0, "qtd_sistema": 0, "idx": 744}, {"id": "58204495160.0", "produto": "ídeo Game Retrô Portátil: A Diversão dos Anos 80 e 90 no seu Bolso.", "variacao": "", "sku": "", "ean": "0.0", "preco": 390.0, "qtd_sistema": 0, "idx": 745}]</script>
+
+</body>
+</html>
