@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1B2C7E">
+<title>Gravações de Vídeo — Flash</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#F5F3EF;color:#2a2a2a;min-height:100vh;padding:24px 16px 40px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.wrap{width:100%;max-width:520px;display:flex;flex-direction:column;gap:14px}
+.logo{font-size:3em;text-align:center}
+h1{font-size:1.3em;text-align:center}
+.sub{opacity:.65;font-size:.85em;text-align:center}
+.prog{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.prog .t{font-size:.85em;font-weight:600;margin-bottom:8px}
+.bar{height:10px;border-radius:6px;background:#E6E2DA;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:#F58220;transition:width .3s}
+details.box{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+details.box summary{font-weight:700;cursor:pointer;list-style:none}
+details.box summary::-webkit-details-marker{display:none}
+details.box summary::after{content:"▾";float:right;opacity:.5}
+details.box[open] summary::after{content:"▴"}
+details.box ol,details.box ul{margin:10px 0 0 20px;font-size:.88em;line-height:1.5}
+details.box li{margin-bottom:6px}
+#lista{display:flex;flex-direction:column;gap:14px}
+.card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.card.feito{opacity:.75}
+.head{background:#1B2C7E;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.head .ic{font-size:1.6em}
+.head .n{font-weight:700;font-size:1.02em}
+.head .c{font-size:.75em;opacity:.8}
+.precos{display:flex;gap:8px;padding:12px 16px 0}
+.precos span{flex:1;background:#FFF1E4;color:#B35500;border-radius:10px;padding:8px 10px;font-weight:700;font-size:.95em;text-align:center}
+.precos small{display:block;font-weight:500;font-size:.68em;opacity:.8}
+.body{padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.rot summary{font-weight:600;font-size:.9em;cursor:pointer;color:#1B2C7E}
+.rot ol{margin:8px 0 0 20px;font-size:.86em;line-height:1.5}
+.rot li{margin-bottom:6px}
+.rot em{color:#666}
+.btns{display:flex;gap:8px}
+.btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border-radius:12px;text-decoration:none;font-weight:700;font-size:.9em;color:#fff;text-align:center}
+.btn.env{background:#F58220}
+.btn.pronto{background:#1B2C7E}
+label.chk{display:flex;align-items:center;gap:10px;font-size:.88em;cursor:pointer;user-select:none}
+label.chk input{width:22px;height:22px;accent-color:#F58220}
+.foot{font-size:.72em;opacity:.55;text-align:center;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">🎬</div>
+  <h1>Gravações de Vídeo</h1>
+  <div class="sub">Grave, envie e o vídeo volta editado. Você não precisa editar nada.</div>
+
+  <div class="prog">
+    <div class="t" id="progTxt">0 de 0 gravados</div>
+    <div class="bar"><i id="progBar"></i></div>
+  </div>
+
+  <details class="box">
+    <summary>📱 Como gravar e enviar</summary>
+    <ol>
+      <li><b>Celular em pé</b> (vídeo vertical), parado num apoio ou na mão de alguém.</li>
+      <li>Lugar <b>claro</b>, de frente para a janela ou a luz. Sem barulho em volta.</li>
+      <li>Deixe o climatizador <b>desligado enquanto fala</b>. Ligue só na hora de mostrar o vento.</li>
+      <li><b>Errou? Não pare a gravação.</b> Respire e fale a frase inteira de novo. O editor tira o erro e fica com a última vez que você falou certo.</li>
+      <li>Pode gravar em vários vídeos curtos. Envie <b>todos de uma vez</b> na pasta do produto.</li>
+      <li>Para enviar: toque em <b>Enviar vídeo</b>, depois no <b>+</b> do Google Drive e em <b>Fazer upload</b>.</li>
+      <li>O vídeo editado aparece em <b>Ver vídeo pronto</b>, em geral em até 1 a 2 horas. Se aparecer um arquivo <b>AVISO</b>, ele explica o que precisa regravar.</li>
+    </ol>
+  </details>
+
+  <div id="lista"></div>
+
+  <div class="foot">Flash • Universo de Produtos<br>WhatsApp (62) 99805-8748 • Av. Mangalô e Goiânia Viva</div>
+</div>
+
+<script>
+// Para pôr um produto novo: crie as pastas dele no Google Drive (em "1 - Enviar vídeos aqui" e em
+// "2 - Vídeos prontos") e copie aqui um bloco, trocando o id do fim de cada link de pasta.
+const DRIVE = "https://drive.google.com/drive/folders/";
+const PRODUTOS = [
+  {id:"vent9", nome:"Climatizador Ventisol 9 litros", cod:"22733 • CLI09-02 • 65W", p1:"279,99", p2:"299,99",
+   enviar:"1pQgBE_gHWjB02JuhcVw1YVUva0Z85HZt", pronto:"1oafGFclBb3EB6QtIZNOvIXyBeYQwn4i4",
+   gancho:"Calor no quarto? Olha esse climatizador pequenininho da Ventisol!",
+   mostrar:"o tamanho dele do lado de uma cama ou mesa, o tanque de 9 litros e onde põe a água"},
+  {id:"vent16", nome:"Climatizador Ventisol 16 litros", cod:"622 • CLIN16 • 130W • 220V", p1:"446,37", p2:"479,97",
+   enviar:"1M26V52bZcolUgf8istev0UH2lTBxZE2v", pronto:"1tA4yyWUvxXAFNdYqJMX2vo2rLJno1Lw0",
+   gancho:"Esse aqui é o climatizador de 16 litros da Ventisol. Olha que preço!",
+   mostrar:"o produto inteiro, o tanque de 16 litros e o painel"},
+  {id:"vent35", nome:"Climatizador Ventisol 35 litros", cod:"Ventisol • 35 L", p1:"739,32", p2:"794,97",
+   enviar:"1Ayujf2tM7n4u6d5suzmo4Xq9KhMQJaa1", pronto:"1t9AaWepIn41veZMbFKpaJXyIo_q7ZxRF",
+   gancho:"Sala grande e muito calor? Esse é o climatizador de 35 litros da Ventisol.",
+   mostrar:"o produto inteiro, o tanque de 35 litros, o painel e as rodinhas, se tiver"},
+  {id:"vent70", nome:"Climatizador Ventisol 70 litros", cod:"Ventisol • 70 L", p1:"1.099,99", p2:"1.199,99",
+   enviar:"1VhlfaHczTOsSfb7WYK-j7HVhGOS-1GcK", pronto:"1Bh59fXPU9FtUwXhzfOowpLp46zj2fq0b",
+   gancho:"Pra loja, salão ou área grande: o climatizador de 70 litros da Ventisol.",
+   mostrar:"o tamanho dele perto de você, o tanque de 70 litros e o painel"},
+  {id:"ultra80", nome:"Climatizador Ultra Ar 80 litros", cod:"Ultra Ar • 80 L", p1:"1.301,97", p2:"1.399,97",
+   enviar:"1IbkgMXtPJNCXlJteaCOjjPnCbk2CLcHn", pronto:"1tMaKgsTmtWDp3_SAankKDkdItA5cWRzo",
+   gancho:"O maior que a gente tem: climatizador Ultra Ar de 80 litros.",
+   mostrar:"o tamanho dele perto de você, o tanque de 80 litros e o painel"}
+];
+
+const CHAVE = "flash-gravacoes-feito";
+function lerFeitos(){ try { return JSON.parse(localStorage.getItem(CHAVE)) || {}; } catch(e){ return {}; } }
+function salvarFeitos(f){ try { localStorage.setItem(CHAVE, JSON.stringify(f)); } catch(e){} }
+let feitos = lerFeitos();
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function desenhar(){
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
+  PRODUTOS.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "card" + (feitos[p.id] ? " feito" : "");
+    card.innerHTML = `
+      <div class="head"><span class="ic">❄️</span><span><span class="n">${esc(p.nome)}</span><br><span class="c">${esc(p.cod)}</span></span></div>
+      <div class="precos"><span><small>Preço 1</small>R$ ${esc(p.p1)}</span><span><small>Preço 2</small>R$ ${esc(p.p2)}</span></div>
+      <div class="body">
+        <details class="rot">
+          <summary>📝 Roteiro (30 a 45 segundos)</summary>
+          <ol>
+            <li><b>Abertura:</b> "${esc(p.gancho)}"</li>
+            <li><b>Mostre</b> ${esc(p.mostrar)}.</li>
+            <li><b>Ligue</b> e mostre o vento (no cabelo, numa folha de papel ou na mão).</li>
+            <li><b>Preço:</b> fale o preço que o gerente combinou com você. <em>O vídeo só mostra na tela o preço que você falar.</em></li>
+            <li><b>Final:</b> "Chama a gente no WhatsApp ou vem na loja: Avenida Mangalô ou Goiânia Viva!"</li>
+          </ol>
+        </details>
+        <div class="btns">
+          <a class="btn env" href="${DRIVE + p.enviar}" target="_blank" rel="noopener">📤 Enviar vídeo</a>
+          <a class="btn pronto" href="${DRIVE + p.pronto}" target="_blank" rel="noopener">✅ Ver vídeo pronto</a>
+        </div>
+        <label class="chk"><input type="checkbox" ${feitos[p.id] ? "checked" : ""}> Já gravei e enviei</label>
+      </div>`;
+    card.querySelector("input").addEventListener("change", e => {
+      if (e.target.checked) feitos[p.id] = true; else delete feitos[p.id];
+      salvarFeitos(feitos);
+      desenhar();
+    });
+    lista.appendChild(card);
+  });
+  const n = PRODUTOS.filter(p => feitos[p.id]).length;
+  document.getElementById("progTxt").textContent = `${n} de ${PRODUTOS.length} gravados`;
+  document.getElementById("progBar").style.width = (PRODUTOS.length ? n / PRODUTOS.length * 100 : 0) + "%";
+}
+desenhar();
+</script>
+</body>
+</html>
